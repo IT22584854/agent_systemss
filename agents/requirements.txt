@@ -1,0 +1,11 @@
+langchain
+langchain_community
+langchain-google-genai
+python-dotenv
+ipykernel
+langgraph-checkpoint-sqlite
+langchain_openai
+langchain-core
+tavily-python
+pygraphviz; platform_system != "Windows"  # optional: requires Graphviz installed when not on Windows
+langgraph
