@@ -2,8 +2,10 @@ import operator
 from typing import Annotated, Any, Dict, List, Optional
 from typing_extensions import NotRequired, TypedDict
 
+from langchain_core.messages import BaseMessage
 from langgraph.graph import MessagesState
 from langgraph.graph.message import add_messages
+from pydantic import BaseModel, Field
 
 class AgentInputState(MessagesState):
     """Input state for the full agent - only contains messages from user input."""
@@ -27,3 +29,19 @@ class AgentState(MessagesState):
     active_agent: NotRequired[str]
     symptom_json: Annotated[SymptomData, merge_symptoms]
     triage_turns: int
+
+
+# ===== STRUCTURED OUTPUT SCHEMAS =====
+
+class ClarifyWithUser(BaseModel):
+    """Schema for user clarification decision and questions."""
+
+    need_clarification: bool = Field(
+        description="Whether the user needs to be asked a clarifying question.",
+    )
+    question: str = Field(
+        description="A question to ask the user to clarify the symptoms they are experiencing.",
+    )
+    verification: str = Field(
+        description="Verify message that we will handover medical_information agent after the user has provided the necessary information.",
+    )
