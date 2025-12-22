@@ -45,3 +45,32 @@ class ClarifyWithUser(BaseModel):
     verification: str = Field(
         description="Verify message that we will handover medical_information agent after the user has provided the necessary information.",
     )
+  
+
+class gatheredSymptomInfo(BaseModel):
+    """Schema for gathered symptom information from the user."""
+
+    chief_complaint: Optional[str] = Field(
+        default=None,
+        description="The main symptom or complaint reported by the user.",
+    )
+    duration: Optional[str] = Field(
+        default=None,
+        description="The duration or onset of the symptoms.",
+    )
+    severity: Optional[str] = Field(
+        default=None,
+        description="The severity or location of the symptoms.",
+    )
+    age_group: Optional[str] = Field(
+        default=None,
+        description="The age group or any chronic conditions of the user.",
+    )
+    location: Optional[str] = Field(
+        default=None,
+        description="The location of the symptoms.",
+    )
+    other_symptoms: Optional[List[str]] = Field(
+        default=None,
+        description="Any other symptoms reported by the user.",
+    )
