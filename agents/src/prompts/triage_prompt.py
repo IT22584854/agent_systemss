@@ -26,11 +26,11 @@ Respond in valid JSON format with these exact keys:
 ""verification": " <message to verify handover to medical_information agent>"
 
 Example response:
-{
+{{
     "need_clarification": true,
     "question": "Can you specify the exact location of your pain?",    
     "verification": "user has provided necessary information, now we can hand over to medical_information agent."
-}
+}}
 """
 
 
@@ -55,13 +55,13 @@ Respond in valid JSON format with these exact keys:
 - "other_symptoms": "<a list of any other symptoms reported by the user, or null if not provided>"
 
 Example response:
-{
+{{
     "chief_complaint": "headache",
     "duration": "2 days",
     "severity": "moderate",
     "age_group": "adult",
     "location": null,
     "other_symptoms": ["nausea"]
-}
+}}
 Output your answer as a JSON object matching this schema.
 """

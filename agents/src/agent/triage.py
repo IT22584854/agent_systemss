@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 from typing_extensions import Literal
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, AIMessage, get_buffer_string
@@ -11,10 +12,12 @@ from agents.src.prompts.triage_prompt import clarify_with_user_instructions, cre
 
 def get_today_str() -> str:
     """Get current date in a human-readable format."""
-    return datetime.now().strftime("%a %b %-d, %Y")
+    now = datetime.now()
+    return f"{now.strftime('%a %b')} {now.day}, {now.year}"
 
 # ===== CONFIGURATION =====
-
+from dotenv import load_dotenv
+load_dotenv()
 # Initialize model
 model = init_chat_model(model="openai:gpt-4.1", temperature=0.0)
 
@@ -40,7 +43,7 @@ def clarify_with_user(state: AgentState) -> Command[Literal["create_symptom_repo
         )
     else:
         return Command(
-            goto="write_research_brief", 
+            goto="create_symptom_report", 
             update={"messages": [AIMessage(content=response.verification)]}
         )
     
@@ -75,5 +78,40 @@ def create_symptom_report(state: AgentState):
 triage_graph = StateGraph(AgentState, input_schema=AgentInputState)
 
 triage_graph.add_edge(START, "clarify_with_user")
-triage_graph.add_edge("clarify_with_user", "create_symptom_report", condition=lambda cmd: cmd.goto == "create_symptom_report")
-triage_graph.add_edge("clarify_with_user", END, condition=lambda cmd: cmd.goto == END)
+triage_graph.add_node(clarify_with_user)
+triage_graph.add_node(create_symptom_report)
+
+graph = triage_graph.compile()
+
+output_path = Path("triage_graph.png")
+graph.get_graph().draw_mermaid_png(output_file_path=output_path)
+print(f"Graph exported to {output_path.resolve()}")
+
+if __name__ == "__main__":
+    print("Starting Triage Agent (type 'quit' to exit)...")
+    messages = []
+    while True:
+        user_input = input("User: ")
+        if user_input.lower() in ["quit", "exit", "q"]:
+            break
+        
+        messages.append(HumanMessage(content=user_input))
+        state = {"messages": messages}
+        
+        # Run the graph
+        result = graph.invoke(state)
+        
+        # Update messages with the result
+        messages = result["messages"]
+        
+        # Print the last message from the agent
+        last_message = messages[-1]
+        if isinstance(last_message, AIMessage):
+            print(f"Agent: {last_message.content}")
+            
+        # Check if we are done (symptom report created)
+        if "symptom_json" in result and result["symptom_json"]:
+             print("\nSymptom Report Created:")
+             print(result["symptom_json"])
+             break
+
