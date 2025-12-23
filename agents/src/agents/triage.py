@@ -74,9 +74,6 @@ def create_symptom_report(state: AgentState):
 
 triage_graph = StateGraph(AgentState, input_schema=AgentInputState)
 
-triage_graph.add_node("clarify_with_user", clarify_with_user)
-triage_graph.add_node("create_symptom_report", create_symptom_report)
-
 triage_graph.add_edge(START, "clarify_with_user")
 triage_graph.add_edge("clarify_with_user", "create_symptom_report", condition=lambda cmd: cmd.goto == "create_symptom_report")
 triage_graph.add_edge("clarify_with_user", END, condition=lambda cmd: cmd.goto == END)
