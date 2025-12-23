@@ -1,0 +1,76 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# =========================
+# Virtual Environments
+# =========================
+venv/
+.venv/
+env/
+ENV/
+
+# =========================
+# Dependency & Build Artifacts
+# =========================
+*.egg-info/
+dist/
+build/
+
+# =========================
+# Model Cache (SentenceTransformers / HuggingFace)
+# =========================
+.cache/
+cache/
+models/
+sentence_transformers/
+
+# =========================
+# Logs & Runtime Files
+# =========================
+*.log
+logs/
+
+# =========================
+# Environment Variables / Secrets
+# =========================
+.env
+.env.*
+secrets.json
+config/local_config.py
+
+# =========================
+# IDEs & Editors
+# =========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# =========================
+# OS Files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Jupyter
+# =========================
+.ipynb_checkpoints/
+
+# =========================
+# Test & Coverage
+# =========================
+.coverage
+htmlcov/
+pytest_cache/
+
+# =========================
+# Temporary Files
+# =========================
+tmp/
+temp/
