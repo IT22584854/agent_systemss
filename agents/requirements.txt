@@ -9,3 +9,7 @@ langchain-core
 tavily-python
 pygraphviz; platform_system != "Windows"  # optional: requires Graphviz installed when not on Windows
 langgraph
+unstructured
+chromadb
+rank_bm25
+

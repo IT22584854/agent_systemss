@@ -1,10 +1,16 @@
 from datetime import datetime
 from pathlib import Path
+import sys
 from typing_extensions import Literal
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, AIMessage, get_buffer_string
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Command
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
+# Ensure imports still work when executed as a script from this directory
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
 from agents.src.graph.state import ClarifyWithUser, AgentState, gatheredSymptomInfo, AgentInputState
 from agents.src.prompts.triage_prompt import clarify_with_user_instructions, create_symptom_report_instructions
 
