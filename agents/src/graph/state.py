@@ -1,7 +1,7 @@
 import operator
 from typing import Annotated, Any, Dict, List, Optional
 from typing_extensions import NotRequired, TypedDict
-
+from enum import Enum
 from langchain_core.messages import BaseMessage
 from langgraph.graph import MessagesState
 from langgraph.graph.message import add_messages
@@ -74,3 +74,18 @@ class gatheredSymptomInfo(BaseModel):
         default=None,
         description="Any other symptoms reported by the user.",
     )
+
+
+class NextAgent(str, Enum):
+    """Strictly enforce valid agent names"""
+    TRIAGE = "triage"
+    MEDICAL_INFO = "medical_info"
+
+class SupervisorInfo(BaseModel):
+    reasoning: str = Field(
+        description="Brief 1-sentence explanation of routing decision (e.g., 'Patient reports current fever symptom')",        
+    )
+    confidence: float = Field(
+        description="Routing certainty (0.0=low, 1.0=high). 1.0 for obvious keywords, 0.7+ for semantic decisions."
+    )
+    next_agent: NextAgent = Field(description="Target agent")

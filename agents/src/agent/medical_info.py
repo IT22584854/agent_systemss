@@ -14,7 +14,7 @@ from langchain_community.retrievers import BM25Retriever
 from langchain_classic.retrievers import EnsembleRetriever
 from langchain.tools import tool
 from langchain.chat_models import init_chat_model
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from pydantic import BaseModel,Field
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -25,7 +25,7 @@ AGENTS_ROOT = Path(__file__).resolve().parents[2]
 if str(AGENTS_ROOT) not in sys.path:
     sys.path.insert(0, str(AGENTS_ROOT))
 
-from agents.src.prompts.medi_info import score_document_prompt,rewrite_prompt,generate_prompt
+from agents.src.prompts.medi_info import score_document_prompt,rewrite_prompt,generate_prompt,generate_query_or_respond_prompt
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
 
@@ -70,12 +70,12 @@ vectorstore = Chroma.from_documents(
 
 
 # Combine a dense retriever with BM25 so factual answers benefit from both semantic and lexical matches.
-dense_retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
-sparse_retriever = BM25Retriever.from_documents(sparse_documents, k=5)
+dense_retriever = vectorstore.as_retriever(search_kwargs={"k": 10})
+sparse_retriever = BM25Retriever.from_documents(sparse_documents, k=10)
 ensemble_retriever = EnsembleRetriever(retrievers=[dense_retriever, sparse_retriever], weights=[0.5, 0.5], c=0)
 
 # ===== RETRIEVAL TOOL =====
-@tool
+@tool("retrieve_medical_info")
 def retrieve_medical_info(query: str) -> str:
     """
     Retrieve medical information related to the provided query using the ensemble retriever.
@@ -94,9 +94,13 @@ response_model = init_chat_model("gpt-4o", temperature=0)
 # ===== GRAPH NODES =====
 def generate_query_or_respond(state: AgentState) -> Command[Literal["retrieve", "__end__"]]:
     """Let the model either issue a retrieval tool call or directly answer the user."""
+    
+    system_prompt = SystemMessage(content=generate_query_or_respond_prompt)
+    conversation = [system_prompt, *state["messages"]]
+
     response = (
         response_model
-        .bind_tools([retriever_tool]).invoke(state["messages"])
+        .bind_tools([retriever_tool]).invoke(conversation)
     )
 
     if response.tool_calls:
@@ -171,9 +175,31 @@ workflow.add_edge("generate_answer", END)
 
 medical_info_graph = workflow.compile()
 
-graph_output_path = Path("medical_info_graph.png")
-medical_info_graph.get_graph().draw_mermaid_png(output_file_path=graph_output_path)
-print(f"Graph exported to {graph_output_path.resolve()}")
+for chunk in medical_info_graph.stream(
+    {
+        "messages": [
+            {
+                "role": "user",
+                "content": "2 hospitals in sri lanka",
+            }
+        ]
+    }
+):
+    for node, update in chunk.items():
+        print("Update from node", node)
+        if not update:
+            continue
+
+        messages = update.get("messages")
+        if not messages:
+            continue
+
+        terminal_message = messages[-1]
+        if hasattr(terminal_message, "pretty_print"):
+            terminal_message.pretty_print()
+        else:
+            print(terminal_message)
+        print("\n\n")
 
 
 
