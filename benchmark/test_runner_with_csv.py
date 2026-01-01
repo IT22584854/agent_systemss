@@ -53,7 +53,7 @@ for item in responses:
         "grade": grade_label
     })
 
-# Write CSV
+# import to csv
 output_path = "outputs/evaluation_results.csv"
 with open(output_path, "w", newline="", encoding="utf-8") as f:
     writer = csv.DictWriter(f, fieldnames=results[0].keys())
