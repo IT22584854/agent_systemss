@@ -1,0 +1,29 @@
+# Core dependencies
+numpy
+pandas
+scikit-learn
+sentence-transformers
+nltk
+# pyyaml
+
+# # LLM and API
+# anthropic
+# openai
+# requests
+
+# # Translation
+# deep-translator
+
+# Utilities
+pyyaml
+python-dotenv
+tqdm
+
+# Visualization and reporting
+matplotlib
+seaborn
+plotly
+
+# # Testing
+# pytest
+# pytest-cov
