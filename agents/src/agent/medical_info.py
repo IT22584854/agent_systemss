@@ -138,7 +138,6 @@ def score_document(state: AgentState) -> Command[Literal["generate_answer", "imp
             goto="improve"
         )
 
-
 # Improve node
 def improve(state: AgentState):
     """Rewrite the original user question."""
@@ -156,6 +155,7 @@ def generate_answer(state: AgentState):
     prompt = generate_prompt.format(question=question, context=context)
     response = response_model.invoke([{"role": "user", "content": prompt}])
     return {"messages": [response]}
+
 
 #Assemble the graph
 workflow = StateGraph(AgentState, input_schema=AgentInputState)
@@ -175,31 +175,32 @@ workflow.add_edge("generate_answer", END)
 
 medical_info_graph = workflow.compile()
 
-for chunk in medical_info_graph.stream(
-    {
-        "messages": [
-            {
-                "role": "user",
-                "content": "2 hospitals in sri lanka",
-            }
-        ]
-    }
-):
-    for node, update in chunk.items():
-        print("Update from node", node)
-        if not update:
-            continue
+if __name__ == "__main__":
+    for chunk in medical_info_graph.stream(
+        {
+            "messages": [
+                {
+                    "role": "user",
+                    "content": "2 hospitals in sri lanka",
+                }
+            ]
+        }
+    ):
+        for node, update in chunk.items():
+            print("Update from node", node)
+            if not update:
+                continue
 
-        messages = update.get("messages")
-        if not messages:
-            continue
+            messages = update.get("messages")
+            if not messages:
+                continue
 
-        terminal_message = messages[-1]
-        if hasattr(terminal_message, "pretty_print"):
-            terminal_message.pretty_print()
-        else:
-            print(terminal_message)
-        print("\n\n")
+            terminal_message = messages[-1]
+            if hasattr(terminal_message, "pretty_print"):
+                terminal_message.pretty_print()
+            else:
+                print(terminal_message)
+            print("\n\n")
 
 
 

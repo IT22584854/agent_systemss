@@ -1,10 +1,8 @@
-from datetime import datetime
 from pathlib import Path
 import sys
 from typing_extensions import Literal
 from langchain.chat_models import init_chat_model
-from langchain_core.messages import HumanMessage, AIMessage, get_buffer_string
-from langgraph.graph import StateGraph, START, END
+from langchain_core.messages import HumanMessage
 from langgraph.types import Command
 from agents.src.graph.state import SupervisorInfo
 from agents.src.prompts.supervisor import SUPERVISOR_PROMPT
@@ -20,13 +18,14 @@ if str(AGENTS_ROOT) not in sys.path:
 
 from dotenv import load_dotenv
 load_dotenv()
-from src.graph.state import AgentState, AgentInputState
+from src.graph.state import AgentState
 
 response_model = init_chat_model("gpt-4o", temperature=0)
 
-def supervisor(state: AgentState) -> Command[Literal["medical_info","triage"]]:
-    """ clarify user query into relevent agent"""
-    
+
+def supervisor(state: AgentState) -> Command[Literal["medical_info", "triage"]]:
+    """Route the conversation to the most relevant agent."""
+
     structured_output_model = response_model.with_structured_output(SupervisorInfo)
 
     user_question = state["messages"][0].content
@@ -36,6 +35,9 @@ def supervisor(state: AgentState) -> Command[Literal["medical_info","triage"]]:
             query=user_question
         ))
     ])
-    print(f"next agent :{response.next_agent}")
-    return response.next_agent
+
+    next_agent = response.next_agent.value
+    print(f"next agent : {next_agent} (confidence={response.confidence:.2f})")
+
+    return Command(goto=next_agent)
 

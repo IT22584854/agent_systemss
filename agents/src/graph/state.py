@@ -23,10 +23,14 @@ def merge_symptoms(existing: SymptomData, updates: SymptomData) -> SymptomData:
     #keeps old data and only updates/adds what the sub-agent just found
     return {**(existing or {}), **(updates or {})}
 
+
+def overwrite_active(_: Optional[str], new_value: Optional[str]) -> Optional[str]:
+    return new_value
+
 class AgentState(MessagesState):
     messages: Annotated[List[BaseMessage], add_messages]
     session_id: str
-    active_agent: NotRequired[str]
+    active_agent: Annotated[Optional[str], overwrite_active]
     symptom_json: Annotated[SymptomData, merge_symptoms]
     triage_turns: int
 

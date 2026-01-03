@@ -38,8 +38,8 @@ def clarify_with_user(state: AgentState) -> Command[Literal["create_symptom_repo
     response = structured_output_model.invoke([
         HumanMessage(content=clarify_with_user_instructions.format(
             messages=get_buffer_string(messages=state["messages"]), 
-            date=get_today_str()
-        ))
+            date=get_today_str()  
+        )) rrr
     ])
 
     if response.need_clarification:
@@ -67,8 +67,8 @@ def create_symptom_report(state: AgentState):
         ))
     ])
 
-
     return {
+        "active_agent": "medical_info",
         "symptom_json": {
             "chief_complaint": response.chief_complaint,
             "duration": response.duration,
@@ -89,11 +89,11 @@ triage_graph.add_node(create_symptom_report)
 
 graph = triage_graph.compile()
 
-output_path = Path("triage_graph.png")
-graph.get_graph().draw_mermaid_png(output_file_path=output_path)
-print(f"Graph exported to {output_path.resolve()}")
-
 if __name__ == "__main__":
+    output_path = Path("triage_graph.png")
+    graph.get_graph().draw_mermaid_png(output_file_path=output_path)
+    print(f"Graph exported to {output_path.resolve()}")
+
     print("Starting Triage Agent (type 'quit' to exit)...")
     messages = []
     while True:

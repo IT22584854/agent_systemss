@@ -37,6 +37,7 @@ def handoff_to_triage_agent(
     )
 
 
+
 # 2. Create handoff tool for medical_information agent
 @tool
 def handoff_to_medical_information_agent(

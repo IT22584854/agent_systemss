@@ -30,38 +30,29 @@ Example response:
     "need_clarification": true,
     "question": "Can you specify the exact location of your pain?",    
     "verification": "user has provided necessary information, now we can hand over to medical_information agent."
-}}
+}}s
 """
 
 
 create_symptom_report_instructions = """
-You are a medical assistant. Your task is to extract and summarize all available symptom information from the conversation so far. 
+You are a clinical triage assistant. Read the full exchange and produce a single retrieval query that another
+agent will use to pull immediate self-care, red-flag actions and follow up guidance. Your query must:
 
-The messages that have been exchanged so far between yourself and the user are:
+1. Summarize the primary symptoms, timeline/onset, severity, and progression.
+2. Mention any known demographics, chronic conditions, medications, allergies, or pregnancy status if stated.
+3. Call out red-flag indicators (e.g., chest pain, trouble breathing, uncontrolled bleeding) or explicitly note if none are mentioned.
+4. Specify what the patient needs next (e.g., "needs immediate self-care steps" or "needs urgent escalation advice").
+5. Remain neutral and factual—do NOT include recommendations or reassurance.
+
+Conversation history:
 <Messages>
 {messages}
 </Messages>
 
-Return the information in the structured format provided below.
+Return JSON:
+{
+    "rag_query": string  // 2-4 sentences combining all relevant details and the desired guidance focus
+}
 
-If any field is missing or not mentioned, leave it as null.
-
-Respond in valid JSON format with these exact keys:
-- "chief_complaint": "<the main symptom or complaint reported by the user, or null if not provided>"
-- "duration": "<the duration or onset of the symptoms, or null if not provided>"
-- "severity": "<the severity of the symptoms, or null if not provided>"
-- "age_group": "<the age group or any chronic conditions of the user, or null if not provided>"
-- "location": "<the location of the symptoms, or null if not provided>"
-- "other_symptoms": "<a list of any other symptoms reported by the user, or null if not provided>"
-
-Example response:
-{{
-    "chief_complaint": "headache",
-    "duration": "2 days",
-    "severity": "moderate",
-    "age_group": "adult",
-    "location": null,
-    "other_symptoms": ["nausea"]
-}}
-Output your answer as a JSON object matching this schema.
+Keep the tone clinical, avoid speculation, and include only what the user has provided.
 """
