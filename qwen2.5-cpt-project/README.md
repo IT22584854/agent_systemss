@@ -4,6 +4,7 @@ Project will have two enviorments to maximize resources efficieny
 
 Expected project folder structure (cab be susceptible to changes)
 
+```text
 qwen2.5-cpt-project/
 ├── local_workspace/                    # RUN THIS ON YOUR PC
 │   ├── raw_data/                       # Original PDFs, dumps (Heavy files)
@@ -22,4 +23,5 @@ qwen2.5-cpt-project/
 │   ├── train_cpt_unsloth.py            # Main Unsloth training script
 │   └── unsloth_config.yaml             # Hyperparameters (Learning rate, LoRA rank)
 │
-└── README.md                           # Documentation `(you're here)`
+└── README.md                           # Documentation (you're here)
+```
