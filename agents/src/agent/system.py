@@ -102,8 +102,6 @@ workflow.add_node("finalize_response", finalize_response)
 
 workflow.add_edge(START, "route_supervisor")
 workflow.add_edge("route_supervisor", "triage_agent")
-workflow.add_edge("route_supervisor", "medical_info_agent")
-workflow.add_edge("triage_agent", "medical_info_agent")
 workflow.add_edge("triage_agent", END)
 workflow.add_edge("medical_info_agent", "finalize_response")
 workflow.add_edge("finalize_response", END)
