@@ -1,20 +1,27 @@
+"""Triage agent for user clarification and intent extraction."""
 from datetime import datetime
 from pathlib import Path
 import sys
-from typing_extensions import Literal
+
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, AIMessage, get_buffer_string
 from langgraph.graph import StateGraph, START, END
-from langgraph.types import Command
+from langsmith import traceable
+
+# Path setup for imports
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
-# Ensure imports still work when executed as a script from this directory
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from agents.src.graph.state import ClarifyWithUser, AgentState, gatheredSymptomInfo, AgentInputState
-from agents.src.prompts.triage_prompt import clarify_with_user_instructions, create_symptom_report_instructions
+from agents.src.graph.state import ClarifyWithUser, AgentState, AgentInputState
+from agents.src.prompts.triage_prompt import intent_classifier_prompt
+from agents.src.config import LLM_MODEL, LLM_TEMPERATURE
+from agents.src.utils import setup_logger, sanitize_input, retry_on_error, create_error_response
 
-# ===== UTILITY FUNCTIONS =====
+# ===== LOGGING =====
+logger = setup_logger("triage_agent")
+
+# ===== UTILITY FUNCTIONS ===== 
 
 def get_today_str() -> str:
     """Get current date in a human-readable format."""
@@ -24,82 +31,92 @@ def get_today_str() -> str:
 # ===== CONFIGURATION =====
 from dotenv import load_dotenv
 load_dotenv()
-# Initialize model
-model = init_chat_model(model="openai:gpt-4.1", temperature=0.0)
+
+# Initialize model with centralized config
+model = init_chat_model(model=LLM_MODEL, temperature=LLM_TEMPERATURE)
 
 # ===== WORKFLOW NODES =====
-def clarify_with_user(state: AgentState) -> Command[Literal["create_symptom_report", "__end__"]]:
-    """Node to clarify symptoms with the user."""
-
-    # set up structured output model
-    structured_output_model = model.with_structured_output(ClarifyWithUser)
-
-    # Invoke the model with clarification instructions
-    response = structured_output_model.invoke([
-        HumanMessage(content=clarify_with_user_instructions.format(
-            messages=get_buffer_string(messages=state["messages"]), 
-            date=get_today_str()  
-        )) rrr
-    ])
-
-    if response.need_clarification:
-        return Command(
-            goto=END, 
-            update={"messages": [AIMessage(content=response.question)]}
-        )
-    else:
-        return Command(
-            goto="create_symptom_report", 
-            update={"messages": [AIMessage(content=response.verification)]}
-        )
+@traceable(name="clarify_with_user")
+def clarify_with_user(state: AgentState):
+    """Clarify user intent and emit a RAG query when ready."""
     
-def create_symptom_report(state: AgentState):
-    """Node to create symptom report for handoff to medical_information agent."""
+    logger.info("Triage agent processing request")
     
-    #setup structured output model
-    structured_output_model = model.with_structured_output(gatheredSymptomInfo)
+    try:
+        # Sanitize the latest user message
+        messages = state.get("messages", [])
+        if messages:
+            last_msg = messages[-1]
+            if isinstance(last_msg, HumanMessage):
+                sanitized_content = sanitize_input(last_msg.content)
+                logger.debug(f"Sanitized input length: {len(sanitized_content)}")
+        
+        structured_output_model = model.with_structured_output(ClarifyWithUser)
+        
+        @retry_on_error(logger=logger)
+        def invoke_model():
+            return structured_output_model.invoke([
+                HumanMessage(content=intent_classifier_prompt.format(
+                    messages=get_buffer_string(messages=state["messages"]),
+                    date=get_today_str()
+                ))
+            ])
+        
+        response = invoke_model()
+        
+        logger.info(f"Need clarification: {response.need_clarification}")
+        logger.debug(f"Follow up: {response.follow_up_question}")
+        logger.debug(f"RAG query: {response.intent_summary}")
 
-    # Invoke the model to gather symptom information
-    response = structured_output_model.invoke([
-        HumanMessage(content=create_symptom_report_instructions.format(
-            messages=get_buffer_string(messages=state["messages"]),
-            date=get_today_str()
-        ))
-    ])
+        if response.need_clarification:
+            follow_up = response.follow_up_question or "Could you share a bit more detail?"
+            return {
+                "messages": [AIMessage(content=follow_up)],
+                "active_agent": "triage",
+                "rag_query": None,
+            }
 
-    return {
-        "active_agent": "medical_info",
-        "symptom_json": {
-            "chief_complaint": response.chief_complaint,
-            "duration": response.duration,
-            "severity": response.severity,
-            "age_group": response.age_group,
-            "location": response.location,
-            "other_symptoms": response.other_symptoms,
+        rag_query = response.intent_summary or "User intent unclear; please restate the concern."
+        logger.info(f"RAG query generated: {rag_query}")
+        return {
+            "rag_query": rag_query,
+            "active_agent": "medical_info"
         }
-    }
+        
+    except Exception as e:
+        logger.error(f"Error in triage agent: {e}")
+        return {
+            "messages": [AIMessage(content=create_error_response("llm"))],
+            "active_agent": "triage",
+            "rag_query": None,
+        }
 
 # ===== GRAPH CONSTRUCTION =====
 
 triage_graph = StateGraph(AgentState, input_schema=AgentInputState)
 
-triage_graph.add_edge(START, "clarify_with_user")
 triage_graph.add_node(clarify_with_user)
-triage_graph.add_node(create_symptom_report)
+
+triage_graph.add_edge(START, "clarify_with_user")
+triage_graph.add_edge("clarify_with_user", END)
 
 graph = triage_graph.compile()
 
 if __name__ == "__main__":
+    # Guard graph visualization
     output_path = Path("triage_graph.png")
     graph.get_graph().draw_mermaid_png(output_file_path=output_path)
-    print(f"Graph exported to {output_path.resolve()}")
+    logger.info(f"Graph exported to {output_path.resolve()}")
 
-    print("Starting Triage Agent (type 'quit' to exit)...")
+    logger.info("Starting Triage Agent (type 'quit' to exit)...")
     messages = []
     while True:
         user_input = input("User: ")
         if user_input.lower() in ["quit", "exit", "q"]:
             break
+        
+        # Sanitize user input
+        user_input = sanitize_input(user_input)
         
         messages.append(HumanMessage(content=user_input))
         state = {"messages": messages}
@@ -107,17 +124,18 @@ if __name__ == "__main__":
         # Run the graph
         result = graph.invoke(state)
         
-        # Update messages with the result
-        messages = result["messages"]
-        
+        # Append graph outputs to the transcript
+        new_messages = result.get("messages", [])
+        if isinstance(new_messages, list):
+            messages.extend(new_messages)
+
         # Print the last message from the agent
         last_message = messages[-1]
         if isinstance(last_message, AIMessage):
-            print(f"Agent: {last_message.content}")
-            
-        # Check if we are done (symptom report created)
-        if "symptom_json" in result and result["symptom_json"]:
-             print("\nSymptom Report Created:")
-             print(result["symptom_json"])
-             break
+            logger.info(f"Agent: {last_message.content}")
 
+        # Check if the RAG query is ready
+        if result.get("rag_query"):
+            logger.info("RAG Query Ready:")
+            logger.info(result["rag_query"])
+            break

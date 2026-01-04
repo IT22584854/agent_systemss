@@ -1,7 +1,6 @@
 import operator
 from typing import Annotated, Any, Dict, List, Optional
 from typing_extensions import NotRequired, TypedDict
-from enum import Enum
 from langchain_core.messages import BaseMessage
 from langgraph.graph import MessagesState
 from langgraph.graph.message import add_messages
@@ -27,13 +26,23 @@ def merge_symptoms(existing: SymptomData, updates: SymptomData) -> SymptomData:
 def overwrite_active(_: Optional[str], new_value: Optional[str]) -> Optional[str]:
     return new_value
 
+
+def overwrite_text(_: Optional[str], new_value: Optional[str]) -> Optional[str]:
+    return new_value
+
+
+def overwrite_flag(_: Optional[bool], new_value: Optional[bool]) -> Optional[bool]:
+    return new_value
+
 class AgentState(MessagesState):
     messages: Annotated[List[BaseMessage], add_messages]
     session_id: str
-    active_agent: Annotated[Optional[str], overwrite_active]
-    symptom_json: Annotated[SymptomData, merge_symptoms]
+    active_agent: Annotated[Optional[str], overwrite_active] = "triage"
+    new_message: Annotated[Optional[bool], overwrite_flag] = True
+    rag_query: Annotated[Optional[str], overwrite_text]
     triage_turns: int
-
+    critique_attempts: int = 0  # Track critique iterations (max 2)
+    critique_feedback: Annotated[Optional[str], overwrite_text] = None  # Feedback from critique
 
 # ===== STRUCTURED OUTPUT SCHEMAS =====
 
@@ -43,11 +52,11 @@ class ClarifyWithUser(BaseModel):
     need_clarification: bool = Field(
         description="Whether the user needs to be asked a clarifying question.",
     )
-    question: str = Field(
-        description="A question to ask the user to clarify the symptoms they are experiencing.",
+    follow_up_question: Optional[str] = Field(
+        description="Clarifying question to ask from user",
     )
-    verification: str = Field(
-        description="Verify message that we will handover medical_information agent after the user has provided the necessary information.",
+    intent_summary: Optional[str] = Field(
+        description="2-3 sentences describing what the user needs from the RAG system",
     )
   
 
@@ -78,18 +87,3 @@ class gatheredSymptomInfo(BaseModel):
         default=None,
         description="Any other symptoms reported by the user.",
     )
-
-
-class NextAgent(str, Enum):
-    """Strictly enforce valid agent names"""
-    TRIAGE = "triage"
-    MEDICAL_INFO = "medical_info"
-
-class SupervisorInfo(BaseModel):
-    reasoning: str = Field(
-        description="Brief 1-sentence explanation of routing decision (e.g., 'Patient reports current fever symptom')",        
-    )
-    confidence: float = Field(
-        description="Routing certainty (0.0=low, 1.0=high). 1.0 for obvious keywords, 0.7+ for semantic decisions."
-    )
-    next_agent: NextAgent = Field(description="Target agent")
