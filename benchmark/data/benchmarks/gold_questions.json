@@ -1,0 +1,37 @@
+[
+  {
+    "id": "Q1",
+    "question": "What are the symptoms of dengue?",
+    "category": "disease_information",
+    "expected_points": ["fever", "headache", "joint pain", "rash"],
+    "has_ground_truth": true
+  },
+  {
+    "id": "Q2",
+    "question": "Where can I get emergency dengue treatment?",
+    "category": "emergency_services",
+    "expected_points": ["government hospital", "emergency"],
+    "has_ground_truth": true
+  },
+  {
+    "id": "Q3",
+    "question": "Are vaccinations free in Sri Lanka?",
+    "category": "vaccination",
+    "expected_points": ["free", "government clinics"],
+    "has_ground_truth": true
+  },
+  {
+    "id": "Q4",
+    "question": "What services are available for pregnant mothers?",
+    "category": "maternal_health",
+    "expected_points": ["antenatal", "delivery", "postnatal"],
+    "has_ground_truth": true
+  },
+  {
+    "id": "Q5",
+    "question": "How can I prevent dengue?",
+    "category": "general_health",
+    "expected_points": ["mosquito", "clean water", "prevent breeding"],
+    "has_ground_truth": false
+  }
+]
