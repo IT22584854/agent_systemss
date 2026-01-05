@@ -1,0 +1,15 @@
+langchain
+langchain_community
+langchain-google-genai
+python-dotenv
+ipykernel
+langgraph-checkpoint-sqlite
+langchain_openai
+langchain-core
+tavily-python
+langgraph
+unstructured
+chromadb
+rank_bm25
+langsmith
+langgraph-cli
