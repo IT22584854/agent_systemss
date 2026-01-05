@@ -28,3 +28,6 @@ plotly
 # # Testing
 # pytest
 # pytest-cov
+
+# fastapi
+# uvicorn
