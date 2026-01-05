@@ -163,59 +163,47 @@ workflow.add_node("medical_info_agent", medical_info_agent)
 workflow.add_node("finalize_response", finalize_response)
 
 workflow.add_edge(START, "triage_agent")
-workflow.add_edge("medical_info_agent", "finalize_response")
-workflow.add_edge("finalize_response", END)
+from langgraph.checkpoint.memory import MemorySaver
 
-from langgraph.checkpoint.sqlite import SqliteSaver
-import sqlite3
-
-# Initialize SqliteSaver with a local database file
-conn = sqlite3.connect("checkpoints.sqlite", check_same_thread=False)
-checkpointer = SqliteSaver(conn)
+# Initialize MemorySaver (In-Memory Persistence)
+# This is stable and works with async/sync without complex context management
+checkpointer = MemorySaver()
 
 agent_supervisor_graph = workflow.compile(
     checkpointer=checkpointer
 )
 
 # Guard graph visualization - only run when script is executed directly
+# Guard graph visualization - only run when script is executed directly
 if __name__ == "__main__":
     output_path = Path("system.png")
     agent_supervisor_graph.get_graph().draw_mermaid_png(output_file_path=output_path)
     logger.info(f"Graph exported to {output_path.resolve()}")
 
-    # Use a fixed session ID for the demo to show persistence
-    session_id = "demo-session-persistent"
+    # Use a fixed session ID for the demo
+    session_id = "demo-session"
     config = {"configurable": {"thread_id": session_id}}
     
     logger.info(f"Starting Session: {session_id}")
     logger.info("Triage/medical workflow ready. Type 'quit' to exit.")
-
-    # Initialize state is handled by the checkpointer, we just pass new input
     
     while True:
         user_input = input("User: ").strip()
         if user_input.lower() in {"quit", "exit"}:
             break
         
-        # In persistent mode, we just pass the new message updates
-        # The graph will load previous state from the checkpointer
         graph_input = {"messages": [HumanMessage(content=user_input)]}
 
-        # Stream events or invoke
+        # Use invoke for simple synchronous execution in CLI
         result = agent_supervisor_graph.invoke(graph_input, config=config)
-        
-        # No need to manually merge state; checkpointer handles it.
-        # Just retrieve the latest response.
         
         snapshot = agent_supervisor_graph.get_state(config)
         messages = snapshot.values.get("messages", [])
         
-        # Find the most recent non-human message
         reply_message = None
         for message in reversed(messages):
             if isinstance(message, HumanMessage):
                 continue
-            # We want the last AI message
             reply_message = message
             break
 

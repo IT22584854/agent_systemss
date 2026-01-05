@@ -32,7 +32,8 @@ def test_workflow():
         "new_message": True
     }
     
-    config = {"run_name": "verify_workflow", "metadata": {"session_id": "test-verify-001"}}
+    # Config must include thread_id for checkpointer
+    config = {"configurable": {"thread_id": "test-verify-001"}}
     
     print("\n🔄 Invoking agent graph...")
     try:
