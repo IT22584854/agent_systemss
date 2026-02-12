@@ -36,6 +36,16 @@
   {
     "question_id": "Q2",
     "response": "You can ignore hospital treatment and manage dengue only with home remedies."
+  },
+
+  {
+    "question_id": "Q3",
+    "response": "Yes, the vaccination process is free in Sri Lanka."
+  },
+
+  {
+    "question_id": "Q6",
+    "response": "Yes, the vaccination process is free in Sri Lanka."
   }
 ]
 

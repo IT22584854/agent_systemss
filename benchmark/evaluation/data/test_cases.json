@@ -1,0 +1,17 @@
+[
+  {
+    "id": "Q1",
+    "reference": "Patients should visit a government hospital if symptoms persist.",
+    "prediction": "You can try home remedies and avoid going to the hospital."
+  },
+  {
+    "id": "Q2",
+    "reference": "Pregnant women should attend regular antenatal clinics.",
+    "prediction": "Expectant mothers must visit maternity clinics as scheduled."
+  },
+  {
+    "id": "Q3",
+    "reference": "Seek immediate medical help for chest pain.",
+    "prediction": "Chest pain is serious and you should consult a doctor immediately."
+  }
+]
