@@ -1,13 +1,14 @@
-import yaml
+class WeightedScorer:
+    def __init__(self, config: dict):
+        self.config = config
 
-def compute_weighted_score(metrics, profile, config_path):
-    with open(config_path) as f:
-        config = yaml.safe_load(f)
+    def score(self, metric_scores: dict, mode: str) -> float:
+        weights = self.config["weights"][mode]
 
-    weights = config["weights"][profile]
+        total_score = 0.0
 
-    score = 0.0
-    for k, w in weights.items():
-        score += metrics.get(k, 0) * w
+        for metric_name, weight in weights.items():
+            metric_value = metric_scores.get(metric_name, 0.0)
+            total_score += metric_value * weight
 
-    return round(score, 3)
+        return round(total_score, 4)
