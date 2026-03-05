@@ -1,38 +1,3 @@
-# import os
-# from pinecone import Pinecone
-# from utils.embeddings import embed
-
-
-# class PineconeRetriever:
-
-#     def __init__(self, index_name):
-#         api_key = os.getenv("PINECONE_API_KEY")
-#         self.pc = Pinecone(api_key=api_key)
-#         self.index = self.pc.Index(index_name)
-
-#     def retrieve(self, query, top_k=5):
-
-#         query_vector = embed(query)
-
-#         results = self.index.query(
-#             vector=query_vector.tolist(),
-#             top_k=top_k,
-#             include_metadata=True
-#         )
-
-#         retrieved_texts = []
-#         scores = []
-#         metadata = []
-
-#         for match in results["matches"]:
-#             scores.append(match["score"])
-#             metadata.append(match["metadata"])
-#             retrieved_texts.append(match["metadata"].get("text", ""))
-
-#         return retrieved_texts, scores, metadata
-
-
-
 import os
 from pinecone import Pinecone
 from utils.embeddings import embed
