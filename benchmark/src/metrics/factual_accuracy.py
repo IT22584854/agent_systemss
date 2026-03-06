@@ -1,22 +1,3 @@
-# from sklearn.metrics.pairwise import cosine_similarity
-# from utils.embeddings import embed
-# import numpy as np
-
-# def factual_accuracy(response: str, corpus_chunks: list[str]) -> float:
-#     """
-#     corpus_chunks = list of retrieved ground truth passages
-#     """
-#     r = embed(response)
-
-#     scores = []
-#     for chunk in corpus_chunks:
-#         c = embed(chunk)
-#         score = cosine_similarity(r, c)[0][0]
-#         scores.append(score)
-
-#     return float(np.max(scores)) if scores else 0.0
-
-
 from sklearn.metrics.pairwise import cosine_similarity
 from utils.embeddings import embed
 import numpy as np

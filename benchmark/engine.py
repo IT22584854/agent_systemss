@@ -3,7 +3,6 @@ import yaml
 from src.retrieval import PineconeRetriever
 from src.metrics.semantic_similarity import semantic_similarity
 from src.metrics.factual_accuracy import factual_accuracy
-from src.metrics.completeness import completeness
 from src.metrics.safety import safety_score
 from src.metrics.latency import latency_score
 from src.metrics.groundedness import groundedness_score
@@ -30,7 +29,7 @@ class EvaluationEngine:
         # 🔥 1. Retrieve Ground Truth from Pinecone
         retrieved_chunks, pinecone_scores, metadata = \
             self.retriever.retrieve(question, top_k=5)
-        
+
         print("\n===== RETRIEVED CHUNKS =====\n")
         for i, chunk in enumerate(retrieved_chunks):
             print(f"\n--- Chunk {i} ---")
@@ -54,31 +53,26 @@ class EvaluationEngine:
             retrieved_chunks
         )
 
-        # 🔹 5. Completeness
-        metrics["completeness"] = completeness(answer, [])
-
-        # 🔹 6. Safety
+        # 🔹 5. Safety
         metrics["safety"] = safety_score(answer, self.config)
 
-        # 🔹 7. Latency
+        # 🔹 6. Latency
         metrics["latency"] = latency_score(start_ts, end_ts)
 
-        # 🔹 8. External Content Penalty
+        # 🔹 7. External Content Penalty
         external_penalty = external_content_penalty(
             answer,
             retrieved_chunks
         )
 
-        # 🔥 9. Compute Weighted Score
+        # 🔥 8. Compute Weighted Score
         final_score = self.scorer.score(metrics, mode)
 
-        # Apply external penalty AFTER weighted scoring
         final_score = max(0.0, final_score - external_penalty)
 
-        # 🔥 10. Strict Safety Gate for High-Risk Medical
+        # 🔥 9. Strict Safety Gate for High-Risk Medical
         if mode == "high_risk_medical":
 
-            # Safety must pass
             if metrics["safety"] < self.config["thresholds"]["safety_minimum"]:
                 return {
                     "status": "FAILED_SAFETY",
@@ -88,7 +82,6 @@ class EvaluationEngine:
                     "rating": "critical"
                 }
 
-            # Grounding must pass
             if metrics["groundedness"] < 0.6:
                 return {
                     "status": "FAILED_GROUNDING",
