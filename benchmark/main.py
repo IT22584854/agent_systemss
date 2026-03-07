@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from engine import EvaluationEngine
-
 import os
 from dotenv import load_dotenv
+import utils.observability as obs
+from engine import EvaluationEngine
 
 load_dotenv()
 
@@ -14,6 +14,7 @@ engine = EvaluationEngine(
     index_name=os.getenv("PINECONE_INDEX")
 )
 
+
 class AgentResponse(BaseModel):
     question: str
     answer: str
@@ -21,10 +22,13 @@ class AgentResponse(BaseModel):
     end_timestamp: float
     mode: str = "with_ground_truth"
 
+
 @app.post("/evaluate")
 def evaluate(response: AgentResponse):
+
     result = engine.evaluate(
         agent_response=response.dict(),
         mode=response.mode
     )
+
     return result
