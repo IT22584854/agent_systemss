@@ -34,6 +34,7 @@ sentence_transformers/
 # =========================
 *.log
 logs/
+wandb/
 
 # =========================
 # Environment Variables / Secrets
