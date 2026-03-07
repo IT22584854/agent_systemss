@@ -37,11 +37,12 @@ def overwrite_flag(_: Optional[bool], new_value: Optional[bool]) -> Optional[boo
 class AgentState(MessagesState):
     messages: Annotated[List[BaseMessage], add_messages]
     session_id: str
-    active_agent: Annotated[Optional[str], overwrite_active] = "triage"
+    active_agent: Annotated[Optional[str], overwrite_active] = "intent_classifier"
     new_message: Annotated[Optional[bool], overwrite_flag] = True
     rag_query: Annotated[Optional[str], overwrite_text]
-    triage_turns: int
-    critique_attempts: int = 0  # Track critique iterations (max 2)
+    intent_classifier_turns: int = 0
+    rewrite_attempts: int = 0  # max 3
+    critique_attempts: int = 0  # max 2
     critique_feedback: Annotated[Optional[str], overwrite_text] = None  # Feedback from critique
 
 # ===== STRUCTURED OUTPUT SCHEMAS =====

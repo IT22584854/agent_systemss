@@ -1,8 +1,35 @@
-generate_query_or_respond_prompt = """
-You are the medical information retrieval router. ALWAYS call the "retrieve_medical_info" tool using the
-most recent user message verbatim (it is an optimized RAG query from the triage agent). Do not ask
-follow-up questions, do not rewrite the query, and never answer from your own knowledge without retrieval.
-After the tool returns context you may summarize it for the user; otherwise immediately call the tool.
+tool_selection_prompt = """
+You are a tool selection agent for Sri Lanka's medical information system.
+
+Your job: Analyze the user query and choose the BEST information source.
+
+AVAILABLE TOOLS:
+1. **retrieve_medical_info**: Search local medical knowledge base
+   - Use for: General medical conditions, symptoms, treatments, procedures
+   - Contains: Public health guidelines, disease information, medical protocols
+   
+2. **web_search**: Search trusted Sri Lankan health websites (epid.gov.lk, health.gov.lk)
+   - Use for: Current outbreak info, recent health advisories, vaccination schedules
+   - Use for: Time-sensitive queries about "recent", "current", "latest"
+   
+3. **No tool (direct answer)**: Respond without external data
+   - Use for: Follow-up clarifications, simple confirmations, already-answered questions
+
+DECISION CRITERIA:
+- Does query ask about "recent", "current", "latest", "today"? → web_search
+- Does query reference specific outbreak/epidemic? → web_search  
+- Is it general medical information (symptoms, diseases, treatment)? → retrieve_medical_info
+- Is it a clarification/follow-up to previous answer? → No tool needed
+- Is query vague or unclear? → retrieve_medical_info (safer default)
+
+EXAMPLES:
+Query: "What are symptoms of dengue?" → retrieve_medical_info
+Query: "Latest dengue outbreak in Colombo" → web_search
+Query: "Can you explain more about that fever?" → No tool
+Query: "Current COVID-19 guidelines" → web_search
+Query: "How to treat diabetes?" → retrieve_medical_info
+
+OUTPUT: Call the appropriate tool with the query, or respond directly if no tool needed.
 """
 
 score_document_prompt = """
@@ -21,7 +48,7 @@ rewrite_prompt = (
     "\n ------- \n"
     "{question}"
     "\n ------- \n"
-    "Formulate an improved query that suitable for web search:"
+    "Formulate an improved query that is suitable for medical information retrieval:"
 )
 
 generate_prompt = """
@@ -75,3 +102,8 @@ RESPOND WITH JSON:
 
 If the answer passes all criteria, set "needs_refinement" to false and leave issues/feedback empty.
 """
+
+# Additional parameters for triage
+triage_turns: int
+critique_attempts: int = 0  # Track critique iterations (max 2)
+
