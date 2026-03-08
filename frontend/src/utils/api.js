@@ -4,7 +4,11 @@
  * In production, set VITE_API_BASE to the backend URL.
  */
 
-const API_BASE = import.meta.env.VITE_API_BASE || '';
+const API_BASE = (
+    globalThis.__APP_CONFIG__?.VITE_API_BASE ||
+    import.meta.env.VITE_API_BASE ||
+    ''
+).replace(/\/$/, '');
 
 /**
  * Send a chat message to the agent.

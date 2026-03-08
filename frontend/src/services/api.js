@@ -3,7 +3,11 @@ import { useState, useEffect } from 'react';
 const BASE_DELAY = 1000; // 1 second
 const MAX_RETRIES = 3;
 const BACKOFF_MULTIPLIER = 2;
-const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
+const API_BASE = (
+  globalThis.__APP_CONFIG__?.VITE_API_BASE ||
+  import.meta.env.VITE_API_BASE ||
+  ''
+).replace(/\/$/, '');
 const IS_PRODUCTION = Boolean(import.meta.env.PROD);
 
 /**
