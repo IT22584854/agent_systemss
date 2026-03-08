@@ -80,6 +80,12 @@ async def chat(req: ChatRequest):
     if not safe_message:
         raise HTTPException(status_code=400, detail="Message is empty or invalid.")
 
+    logger.info(
+        "Received chat request | session_id=%s | preview=%s",
+        session_id,
+        safe_message[:120].replace("\n", " "),
+    )
+
     state = {
         "messages": [HumanMessage(content=safe_message)],
         "session_id": session_id,
