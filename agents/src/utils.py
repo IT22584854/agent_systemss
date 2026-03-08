@@ -1,6 +1,7 @@
 """Shared utilities for logging, input sanitization, and retry logic."""
 import logging
 import re
+import sys
 import time
 import unicodedata
 from functools import wraps
@@ -13,7 +14,7 @@ def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     """Create a configured logger instance."""
     logger = logging.getLogger(name)
     if not logger.handlers:
-        handler = logging.StreamHandler()
+        handler = logging.StreamHandler(sys.stdout)
         formatter = logging.Formatter(
             "%(asctime)s.%(msecs)03d | %(levelname)-7s | %(name)s | %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S"

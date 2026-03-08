@@ -3,6 +3,8 @@ import os
 import uuid
 import chromadb
 import sys
+import json
+from functools import lru_cache
 from typing import Any, Dict, List
 from typing_extensions import Literal
 from langgraph.types import Command
@@ -49,98 +51,98 @@ from agents.src.supabase_loader import load_documents_from_supabase
 
 logger = setup_logger("medical_info_agent")
 
-# ===== DATA INGEST — load from Supabase =====
-all_documents = load_documents_from_supabase()
-logger.info(f"Total documents loaded from Supabase: {len(all_documents)}")
-
-# Split documents while preserving metadata
-character_splitter = RecursiveCharacterTextSplitter(
-    separators=["\n\n", "\n", ". ", " ", ""],
-    chunk_size=200,
-    chunk_overlap=50
-)
-
-# Split each document individually to preserve source_file metadata
-dense_documents = []
-sparse_documents = []
-chunk_counter = 0
-
-for doc in all_documents:
-    # Split this document
-    doc_splits = character_splitter.split_text(doc.page_content)
-    source_reference = doc.metadata.get("source_reference", "Unknown")
-    
-    # Create Document objects preserving source_file
-    for split_text in doc_splits:
-        dense_documents.append(
-            Document(
-                page_content=split_text,
-                metadata={
-                    "id": str(chunk_counter),
-                    "source": "dense",
-                    "chunk_index": chunk_counter,
-                    "source_reference": source_reference  
-                }
-            )
-        )
-        sparse_documents.append(
-            Document(
-                page_content=split_text,
-                metadata={
-                    "id": str(chunk_counter),
-                    "source": "sparse",
-                    "chunk_index": chunk_counter,
-                    "source_reference": source_reference
-                }
-            )
-        )
-        chunk_counter += 1
-
-logger.info(f"Created {len(dense_documents)} document chunks with preserved metadata")
-
-# ===== RETRIEVAL STACK — rebuild ChromaDB fresh from Supabase data =====
-embedding_function = OpenAIEmbeddings()
-
-logger.info(f"Initializing ChromaDB with persist directory: {CHROMA_PERSIST_DIR}")
-chroma_client = chromadb.PersistentClient(path=CHROMA_PERSIST_DIR)
-
-# Reuse the persisted collection if it already has documents, otherwise build from Supabase
-try:
-    col = chroma_client.get_collection(name=CHROMA_COLLECTION_NAME)
-    if col.count() > 0:
-        logger.info(
-            f"Reusing cached ChromaDB collection '{CHROMA_COLLECTION_NAME}' "
-            f"({col.count()} docs) — skipping re-embed"
-        )
-        vectorstore = Chroma(
-            client=chroma_client,
-            collection_name=CHROMA_COLLECTION_NAME,
-            embedding_function=embedding_function,
-        )
-    else:
-        raise ValueError("Collection exists but is empty — rebuilding")
-except Exception as _cache_miss:
-    logger.info(
-        f"ChromaDB cache miss ({_cache_miss}). "
-        f"Building collection from {len(dense_documents)} chunks ..."
+def _build_chunked_documents(all_documents: List[Document]) -> tuple[List[Document], List[Document]]:
+    """Split source documents into dense/sparse chunk lists while preserving metadata."""
+    character_splitter = RecursiveCharacterTextSplitter(
+        separators=["\n\n", "\n", ". ", " ", ""],
+        chunk_size=200,
+        chunk_overlap=50,
     )
-    vectorstore = Chroma.from_documents(
-        documents=dense_documents,
-        embedding=embedding_function,
-        collection_name=CHROMA_COLLECTION_NAME,
-        client=chroma_client,
-    )
-    logger.info(f"ChromaDB collection built with {vectorstore._collection.count()} documents")
 
-# Combine a dense retriever with BM25
-dense_retriever = vectorstore.as_retriever(search_kwargs={"k": RETRIEVAL_TOP_K})
-sparse_retriever = BM25Retriever.from_documents(sparse_documents, k=RETRIEVAL_TOP_K)
-sparse_weight = 1.0 - ENSEMBLE_DENSE_WEIGHT
-ensemble_retriever = EnsembleRetriever(
-    retrievers=[dense_retriever, sparse_retriever], 
-    weights=[ENSEMBLE_DENSE_WEIGHT, sparse_weight], 
-    c=60
-)
+    dense_documents: List[Document] = []
+    sparse_documents: List[Document] = []
+    chunk_counter = 0
+
+    for doc in all_documents:
+        doc_splits = character_splitter.split_text(doc.page_content)
+        source_reference = doc.metadata.get("source_reference", "Unknown")
+
+        for split_text in doc_splits:
+            metadata = {
+                "id": str(chunk_counter),
+                "chunk_index": chunk_counter,
+                "source_reference": source_reference,
+            }
+            dense_documents.append(
+                Document(page_content=split_text, metadata={**metadata, "source": "dense"})
+            )
+            sparse_documents.append(
+                Document(page_content=split_text, metadata={**metadata, "source": "sparse"})
+            )
+            chunk_counter += 1
+
+    logger.info(f"Created {len(dense_documents)} document chunks with preserved metadata")
+    return dense_documents, sparse_documents
+
+
+@lru_cache(maxsize=1)
+def get_ensemble_retriever() -> EnsembleRetriever | None:
+    """Initialize the retrieval stack lazily; return None if corpus setup is unavailable."""
+    try:
+        all_documents = load_documents_from_supabase()
+        logger.info(f"Total documents loaded from Supabase: {len(all_documents)}")
+    except Exception as exc:
+        logger.exception(f"Supabase load failed: {exc}")
+        return None
+
+    if not all_documents:
+        logger.warning("No corpus documents available from Supabase; retrieval will be disabled")
+        return None
+
+    dense_documents, sparse_documents = _build_chunked_documents(all_documents)
+
+    try:
+        embedding_function = OpenAIEmbeddings()
+        logger.info(f"Initializing ChromaDB with persist directory: {CHROMA_PERSIST_DIR}")
+        chroma_client = chromadb.PersistentClient(path=CHROMA_PERSIST_DIR)
+
+        try:
+            col = chroma_client.get_collection(name=CHROMA_COLLECTION_NAME)
+            if col.count() > 0:
+                logger.info(
+                    f"Reusing cached ChromaDB collection '{CHROMA_COLLECTION_NAME}' "
+                    f"({col.count()} docs) — skipping re-embed"
+                )
+                vectorstore = Chroma(
+                    client=chroma_client,
+                    collection_name=CHROMA_COLLECTION_NAME,
+                    embedding_function=embedding_function,
+                )
+            else:
+                raise ValueError("Collection exists but is empty — rebuilding")
+        except Exception as cache_miss:
+            logger.info(
+                f"ChromaDB cache miss ({cache_miss}). Building collection from {len(dense_documents)} chunks ..."
+            )
+            vectorstore = Chroma.from_documents(
+                documents=dense_documents,
+                embedding=embedding_function,
+                collection_name=CHROMA_COLLECTION_NAME,
+                client=chroma_client,
+            )
+            logger.info(f"ChromaDB collection built with {vectorstore._collection.count()} documents")
+
+        dense_retriever = vectorstore.as_retriever(search_kwargs={"k": RETRIEVAL_TOP_K})
+        sparse_retriever = BM25Retriever.from_documents(sparse_documents, k=RETRIEVAL_TOP_K)
+        sparse_weight = 1.0 - ENSEMBLE_DENSE_WEIGHT
+        return EnsembleRetriever(
+            retrievers=[dense_retriever, sparse_retriever],
+            weights=[ENSEMBLE_DENSE_WEIGHT, sparse_weight],
+            c=60,
+        )
+    except Exception as exc:
+        logger.exception(f"Retriever initialization failed: {exc}")
+        return None
 
 # ===== RETRIEVAL TOOL ===== 
 
@@ -155,6 +157,14 @@ def retrieve_medical_info(query: str) -> str:
     """
 
     try:
+        ensemble_retriever = get_ensemble_retriever()
+        if ensemble_retriever is None:
+            logger.warning("Retrieval requested but no retriever is available")
+            return json.dumps({
+                "documents": [],
+                "error": "Medical knowledge base is unavailable right now."
+            })
+
         docs = ensemble_retriever.invoke(query)
         logger.debug(f"Query passed to tool: {query}")
         logger.info(f"Retrieved {len(docs)} documents")
@@ -171,8 +181,6 @@ def retrieve_medical_info(query: str) -> str:
                 snippet,
             )
         
-        # Return JSON format to preserve metadata for citations
-        import json
         result = {
             "documents": [
                 {
