@@ -1,7 +1,6 @@
 {
   "build": {
-    "builder": "NIXPACKS",
-    "buildCommand": "npm ci --include=dev && npm run build"
+    "builder": "NIXPACKS"
   },
   "deploy": {
     "startCommand": "npx serve -s dist -l $PORT --no-clipboard"
