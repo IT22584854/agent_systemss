@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import sys
+import types
 import uuid
 from pathlib import Path
 from typing import List, Optional
@@ -12,11 +13,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 # ── Path setup ───────────────────────────────────────────────────────────────
-# Ensure the repo root is on sys.path so `agents.src.*` imports resolve.
-# When Railway runs from agents/ as root dir, parent is the full repo root.
-_REPO_ROOT = Path(__file__).resolve().parent.parent
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
+# Railway deploys only the agents/ folder to /app, so `import agents` fails
+# because the package can't find itself. Fix: register a virtual 'agents'
+# package pointing to this directory before any agents.src.* imports occur.
+# This also fixes sub-modules (system.py, config.py, etc.) that use the same
+# `from agents.src.*` pattern.
+_HERE = Path(__file__).resolve().parent
+if "agents" not in sys.modules:
+    _agents_pkg = types.ModuleType("agents")
+    _agents_pkg.__path__ = [str(_HERE)]
+    _agents_pkg.__package__ = "agents"
+    sys.modules["agents"] = _agents_pkg
 
 from langchain_core.messages import AIMessage, HumanMessage
 
