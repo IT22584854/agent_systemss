@@ -13,3 +13,5 @@ chromadb
 rank_bm25
 langsmith
 langgraph-cli
+fastapi
+uvicorn[standard]
