@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 const BASE_DELAY = 1000; // 1 second
 const MAX_RETRIES = 3;
 const BACKOFF_MULTIPLIER = 2;
-const API_BASE = import.meta.env.VITE_API_BASE || '';
+const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
+const IS_PRODUCTION = Boolean(import.meta.env.PROD);
 
 /**
  * Enhanced API service with retry logic and better error handling
@@ -34,6 +35,14 @@ class ApiService {
    * Generic request method with retry logic
    */
   async request(endpoint, options = {}, retries = MAX_RETRIES) {
+    if (!this.baseURL && IS_PRODUCTION) {
+      throw new ApiError(
+        'Frontend API is not configured. Set VITE_API_BASE to the backend Railway URL and redeploy the frontend.',
+        0,
+        { endpoint }
+      );
+    }
+
     const url = `${this.baseURL}${endpoint}`;
     const config = {
       ...options,
@@ -46,10 +55,13 @@ class ApiService {
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         const response = await fetch(url, config);
+        const contentType = response.headers.get('content-type') || '';
         
         // Handle HTTP errors
         if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
+          const errorData = contentType.includes('application/json')
+            ? await response.json().catch(() => ({}))
+            : { message: `HTTP ${response.status}: ${response.statusText}` };
           throw new ApiError(
             errorData.message || `HTTP ${response.status}: ${response.statusText}`,
             response.status,
@@ -57,10 +69,24 @@ class ApiService {
           );
         }
 
+        if (!contentType.includes('application/json')) {
+          const body = await response.text();
+          const looksLikeHtml = /^\s*<!doctype html>|^\s*<html/i.test(body);
+          const message = looksLikeHtml
+            ? 'Received HTML instead of API JSON. VITE_API_BASE likely points to the frontend or is missing; set it to the backend Railway URL and redeploy.'
+            : 'API returned an unexpected non-JSON response.';
+
+          throw new ApiError(message, response.status || 0, {
+            endpoint,
+            url,
+            contentType,
+          });
+        }
+
         return await response.json();
       } catch (error) {
         // Don't retry on client errors (4xx) or last attempt
-        if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
+        if (error instanceof ApiError && (error.status >= 400 && error.status < 500 || error.status === 0)) {
           throw error;
         }
 
