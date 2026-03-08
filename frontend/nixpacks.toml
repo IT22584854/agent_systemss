@@ -2,4 +2,4 @@
 cmds = []
 
 [phases.build]
-cmds = ["npm ci --include=dev --cache /tmp/npm-cache && npm run build"]
+cmds = ["npm install --include=dev && npm run build"]
