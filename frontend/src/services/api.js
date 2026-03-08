@@ -3,12 +3,13 @@ import { useState, useEffect } from 'react';
 const BASE_DELAY = 1000; // 1 second
 const MAX_RETRIES = 3;
 const BACKOFF_MULTIPLIER = 2;
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 /**
  * Enhanced API service with retry logic and better error handling
  */
 class ApiService {
-  constructor(baseURL = import.meta.env.VITE_API_BASE || 'http://localhost:8000') {
+  constructor(baseURL = API_BASE) {
     this.baseURL = baseURL;
     this.defaultHeaders = {
       'Content-Type': 'application/json',
