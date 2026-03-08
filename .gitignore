@@ -82,3 +82,10 @@ chroma_db/
 agents/chroma_db/
 *.bin
 *.pickle
+
+# =========================
+# Node / Frontend
+# =========================
+node_modules/
+**/node_modules/
+frontend/dist/
