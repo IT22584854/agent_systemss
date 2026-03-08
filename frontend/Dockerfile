@@ -8,6 +8,6 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-EXPOSE 3000
+EXPOSE 8080
 
-CMD ["sh", "-c", "npx serve -s dist -l tcp://0.0.0.0:${PORT:-3000} --no-clipboard"]
+CMD ["sh", "-c", "npx serve -s dist -l tcp://0.0.0.0:${PORT:-8080} --no-clipboard"]
