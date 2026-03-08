@@ -1,0 +1,41 @@
+[
+  {
+    "question_id": "Q1",
+    "response": "Dengue causes fever, headache, joint pain and skin rash. This information is provided by the Ministry of Health Sri Lanka."
+  },
+  {
+    "question_id": "Q2",
+    "response": "You should immediately go to a government hospital emergency unit if dengue symptoms become severe."
+  },
+  {
+    "question_id": "Q3",
+    "response": "Vaccinations are provided free of charge at government clinics according to the Ministry of Health."
+  },
+  {
+    "question_id": "Q4",
+    "response": "Pregnant mothers can receive antenatal care, delivery services and postnatal care at government maternity clinics."
+  },
+  {
+    "question_id": "Q5",
+    "response": "To prevent dengue, remove stagnant water where mosquitoes breed and keep your surroundings clean."
+  },
+
+
+  {
+    "question_id": "Q1",
+    "response": "Dengue is a disease."
+  },
+
+
+  {
+    "question_id": "Q3",
+    "response": "Some vaccines may cost money depending on the hospital."
+  },
+
+
+  {
+    "question_id": "Q2",
+    "response": "You can ignore hospital treatment and manage dengue only with home remedies."
+  }
+]
+

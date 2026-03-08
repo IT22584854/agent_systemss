@@ -30,16 +30,3 @@ MAX_REWRITE_ATTEMPTS = int(os.getenv("MAX_REWRITE_ATTEMPTS", "3"))
 # === Retry Configuration ===
 LLM_MAX_RETRIES = int(os.getenv("LLM_MAX_RETRIES", "3"))
 LLM_RETRY_DELAY = float(os.getenv("LLM_RETRY_DELAY", "1.0"))
-
-# === Tavily Web Search Configuration ===
-TAVILY_INCLUDE_DOMAINS = os.getenv(
-    "TAVILY_INCLUDE_DOMAINS", 
-    "epid.gov.lk,health.gov.lk"
-).split(",")
-TAVILY_MAX_RESULTS = int(os.getenv("TAVILY_MAX_RESULTS", "5"))
-
-# === Medical Disclaimer ===
-MEDICAL_DISCLAIMER = os.getenv(
-    "MEDICAL_DISCLAIMER",
-    "\n\n⚕️ MEDICAL DISCLAIMER: This information is for educational purposes only and should not be considered as medical advice. Always consult with a qualified healthcare professional for medical concerns, diagnosis, or treatment."
-)

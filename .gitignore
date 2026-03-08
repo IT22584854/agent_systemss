@@ -74,16 +74,3 @@ pytest_cache/
 # =========================
 tmp/
 temp/
-
-# =========================
-# Vector Database (use Railway Volume in production)
-# =========================
-chroma_db/
-agents/chroma_db/
-
-# =========================
-# LangGraph Runtime Checkpoints
-# =========================
-.langgraph_api/
-checkpoints.sqlite
-*.pckl
