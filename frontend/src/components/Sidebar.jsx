@@ -1,12 +1,31 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import PropTypes from 'prop-types';
 import { PlusCircle, MessageSquare, Trash2, Search, Pin, Archive, MoreVertical, Clock } from 'lucide-react';
+import { useLocalStorage } from '../hooks/useLocalStorage';
+
+const PINNED_STORAGE_KEY = 'mta_pinned_conversations';
+const ARCHIVED_STORAGE_KEY = 'mta_archived_conversations';
+
+function getConversationActivity(conv) {
+    return conv.updatedAt || conv.createdAt || conv.timestamp || 0;
+}
 
 export default function Sidebar({ conversations, activeId, onNewChat, onOpen, onDelete }) {
     const [searchQuery, setSearchQuery] = useState('');
-    const [pinnedConvs, setPinnedConvs] = useState(new Set());
-    const [archivedConvs, setArchivedConvs] = useState(new Set());
+    const [pinnedIds, setPinnedIds] = useLocalStorage(PINNED_STORAGE_KEY, []);
+    const [archivedIds, setArchivedIds] = useLocalStorage(ARCHIVED_STORAGE_KEY, []);
     const [menuOpen, setMenuOpen] = useState(null);
+
+    const pinnedConvs = useMemo(() => new Set(pinnedIds), [pinnedIds]);
+    const archivedConvs = useMemo(() => new Set(archivedIds), [archivedIds]);
+
+    useEffect(() => {
+        if (menuOpen === null) return undefined;
+
+        const handleWindowClick = () => setMenuOpen(null);
+        window.addEventListener('click', handleWindowClick);
+        return () => window.removeEventListener('click', handleWindowClick);
+    }, [menuOpen]);
 
     // Filter conversations by search query and archived status
     const filteredConversations = conversations.filter(conv =>
@@ -35,7 +54,7 @@ export default function Sidebar({ conversations, activeId, onNewChat, onOpen, on
         last30Days.setDate(last30Days.getDate() - 30);
 
         filteredConversations.forEach(conv => {
-            const convDate = conv.timestamp ? new Date(conv.timestamp) : new Date();
+            const convDate = new Date(getConversationActivity(conv) || Date.now());
 
             if (pinnedConvs.has(conv.id)) {
                 groups.pinned.push(conv);
@@ -52,33 +71,31 @@ export default function Sidebar({ conversations, activeId, onNewChat, onOpen, on
             }
         });
 
+        Object.values(groups).forEach(group => {
+            group.sort((a, b) => getConversationActivity(b) - getConversationActivity(a));
+        });
+
         return groups;
     }, [filteredConversations, pinnedConvs]);
 
     const togglePin = (convId, e) => {
         e?.stopPropagation();
-        setPinnedConvs(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(convId)) {
-                newSet.delete(convId);
-            } else {
-                newSet.add(convId);
+        setPinnedIds(prev => {
+            if (prev.includes(convId)) {
+                return prev.filter(id => id !== convId);
             }
-            return newSet;
+            return [...prev, convId];
         });
         setMenuOpen(null);
     };
 
     const toggleArchive = (convId, e) => {
         e?.stopPropagation();
-        setArchivedConvs(prev => {
-            const newSet = new Set(prev);
-            if (newSet.has(convId)) {
-                newSet.delete(convId);
-            } else {
-                newSet.add(convId);
+        setArchivedIds(prev => {
+            if (prev.includes(convId)) {
+                return prev.filter(id => id !== convId);
             }
-            return newSet;
+            return [...prev, convId];
         });
         setMenuOpen(null);
     };
@@ -98,7 +115,8 @@ export default function Sidebar({ conversations, activeId, onNewChat, onOpen, on
     };
 
     const handleConversationClick = (conv) => {
-        onOpen(conv);
+        onOpen(conv.id);
+        setMenuOpen(null);
     };
 
     const handleNewChat = () => {
@@ -106,12 +124,13 @@ export default function Sidebar({ conversations, activeId, onNewChat, onOpen, on
     };
 
     return (
-        <aside className="sidebar">
+            <aside className="sidebar">
             {/* Logo */}
             <div className="sidebar-logo">
                 <div className="sidebar-logo-icon">🩺</div>
                 <div>
                     <div className="sidebar-logo-text">MedTriage AI</div>
+                    <div className="sidebar-logo-subtext">Clinical guidance with source-backed answers</div>
                 </div>
             </div>
 
@@ -129,7 +148,8 @@ export default function Sidebar({ conversations, activeId, onNewChat, onOpen, on
                 {/* Search Bar */}
                 {conversations.length > 0 && (
                     <div className="px-3 mb-2">
-                        <div className="relative">
+                        <div className="sidebar-search-shell">
+                            <Search size={14} className="sidebar-search-icon" />
                             <input
                                 type="text"
                                 placeholder="Search conversations..."
@@ -222,12 +242,12 @@ function ConversationItem({ conv, isActive, isPinned, formatTimestamp, menuOpen,
                 </div>
                 <div className="history-item-content">
                     <span className="history-title">{conv.title || 'Untitled'}</span>
-                    {conv.timestamp && (
+                    {getConversationActivity(conv) ? (
                         <span className="history-timestamp">
                             <Clock size={10} />
-                            {formatTimestamp(conv.timestamp)}
+                            {formatTimestamp(getConversationActivity(conv))}
                         </span>
-                    )}
+                    ) : null}
                 </div>
             </div>
             
@@ -267,6 +287,8 @@ ConversationItem.propTypes = {
     conv: PropTypes.shape({
         id: PropTypes.string.isRequired,
         title: PropTypes.string,
+        createdAt: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
+        updatedAt: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
         timestamp: PropTypes.oneOfType([PropTypes.string, PropTypes.number]),
     }).isRequired,
     isActive: PropTypes.bool.isRequired,

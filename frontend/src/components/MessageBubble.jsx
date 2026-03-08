@@ -6,6 +6,14 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import Citations from './Citations';
 import { MessageActions } from './chat/MessageActions';
 
+function stripInlineSources(content, sources) {
+    if (!content || !Array.isArray(sources) || sources.length === 0) return content;
+
+    return content
+        .replace(/\n{0,2}□?Sources:\s*[\s\S]*$/i, '')
+        .trim();
+}
+
 function UserMessage({ msg, showActions }) {
     return (
         <div className="message-group group">
@@ -22,6 +30,8 @@ function UserMessage({ msg, showActions }) {
 }
 
 function AssistantMessage({ msg, isLastAssistantMessage, showActions }) {
+    const renderedContent = stripInlineSources(msg.content, msg.sources);
+
     return (
         <div className="message-group group">
             <div className="message-row">
@@ -50,7 +60,7 @@ function AssistantMessage({ msg, isLastAssistantMessage, showActions }) {
                                 },
                             }}
                         >
-                            {msg.content}
+                            {renderedContent}
                         </ReactMarkdown>
                     </div>
                     <Citations sources={msg.sources} />

@@ -38,34 +38,34 @@ export function KeyboardShortcuts() {
   ];
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-2 text-gray-900 dark:text-gray-100">
-        <Keyboard className="w-5 h-5" />
-        <h3 className="text-lg font-semibold">Keyboard Shortcuts</h3>
+    <div className="keyboard-shortcuts">
+      <div className="keyboard-shortcuts-header">
+        <Keyboard size={18} />
+        <h3>Keyboard Shortcuts</h3>
       </div>
 
       {shortcuts.map((section) => (
-        <div key={section.category}>
-          <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
+        <div key={section.category} className="keyboard-shortcuts-section">
+          <h4 className="keyboard-shortcuts-title">
             {section.category}
           </h4>
-          <div className="space-y-2">
+          <div className="keyboard-shortcuts-list">
             {section.items.map((shortcut, idx) => (
               <div
                 key={idx}
-                className="flex items-center justify-between py-2 px-3 rounded-lg bg-gray-50 dark:bg-gray-800/50"
+                className="keyboard-shortcut-row"
               >
-                <span className="text-sm text-gray-600 dark:text-gray-400">
+                <span className="keyboard-shortcut-description">
                   {shortcut.description}
                 </span>
-                <div className="flex items-center gap-1">
+                <div className="keyboard-shortcut-keys">
                   {shortcut.keys.map((key, keyIdx) => (
-                    <span key={keyIdx} className="inline-flex">
-                      <kbd className="px-2 py-1 text-xs font-semibold text-gray-800 dark:text-gray-200 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded shadow-sm">
+                    <span key={keyIdx} className="keyboard-shortcut-key-group">
+                      <kbd className="keyboard-shortcut-key">
                         {key}
                       </kbd>
                       {keyIdx < shortcut.keys.length - 1 && (
-                        <span className="mx-1 text-gray-400">+</span>
+                        <span className="keyboard-shortcut-plus">+</span>
                       )}
                     </span>
                   ))}
@@ -76,7 +76,7 @@ export function KeyboardShortcuts() {
         </div>
       ))}
 
-      <div className="text-xs text-gray-500 dark:text-gray-500 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="keyboard-shortcuts-footer">
         <p>💡 Tip: Some shortcuts may vary by browser or operating system.</p>
       </div>
     </div>

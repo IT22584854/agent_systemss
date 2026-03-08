@@ -18,6 +18,8 @@ export function ChatProvider({ children }) {
   const [error, setError] = useState(null);
   const sessionIdRef = useRef(null);
 
+  const getConversationTimestamp = () => Date.now();
+
   // Get active conversation
   const activeConversation = conversations.find(c => c.id === activeId);
 
@@ -60,13 +62,15 @@ export function ChatProvider({ children }) {
   const startNewChat = useCallback(() => {
     const id = uuidv4();
     const sessionId = uuidv4();
+    const now = getConversationTimestamp();
     sessionIdRef.current = sessionId;
 
     const newConv = {
       id,
       sessionId,
       title: 'New Conversation',
-      createdAt: Date.now(),
+      createdAt: now,
+      updatedAt: now,
       messages: [],
     };
 
@@ -110,13 +114,15 @@ export function ChatProvider({ children }) {
     if (!convId) {
       convId = uuidv4();
       sessionId = uuidv4();
+      const now = getConversationTimestamp();
       sessionIdRef.current = sessionId;
       
       const newConv = {
         id: convId,
         sessionId,
         title: text.slice(0, 45),
-        createdAt: Date.now(),
+        createdAt: now,
+        updatedAt: now,
         messages: [],
       };
       
@@ -141,6 +147,7 @@ export function ChatProvider({ children }) {
       ...c,
       messages: nextMessages,
       title: c.title === 'New Conversation' ? text.slice(0, 45) : c.title,
+      updatedAt: getConversationTimestamp(),
     }));
 
     try {
@@ -155,7 +162,7 @@ export function ChatProvider({ children }) {
       
       const finalMessages = [...nextMessages, aiMsg];
       setMessages(finalMessages);
-      updateActiveConversation(c => ({ ...c, messages: finalMessages }));
+      updateActiveConversation(c => ({ ...c, messages: finalMessages, updatedAt: getConversationTimestamp() }));
     } catch (err) {
       const errorMessage = err instanceof ApiError
         ? err.message
@@ -193,7 +200,7 @@ export function ChatProvider({ children }) {
     setError(null);
 
     // Persist immediately
-    updateActiveConversation(c => ({ ...c, messages: nextMessages }));
+    updateActiveConversation(c => ({ ...c, messages: nextMessages, updatedAt: getConversationTimestamp() }));
 
     try {
       const data = await api.sendChatMessage(newContent, sessionIdRef.current);
@@ -207,7 +214,7 @@ export function ChatProvider({ children }) {
       
       const finalMessages = [...nextMessages, aiMsg];
       setMessages(finalMessages);
-      updateActiveConversation(c => ({ ...c, messages: finalMessages }));
+      updateActiveConversation(c => ({ ...c, messages: finalMessages, updatedAt: getConversationTimestamp() }));
     } catch (err) {
       const errorMessage = err instanceof ApiError
         ? err.message
@@ -256,7 +263,7 @@ export function ChatProvider({ children }) {
       
       const finalMessages = [...updatedMessages, aiMsg];
       setMessages(finalMessages);
-      updateActiveConversation(c => ({ ...c, messages: finalMessages }));
+      updateActiveConversation(c => ({ ...c, messages: finalMessages, updatedAt: getConversationTimestamp() }));
     } catch (err) {
       const errorMessage = err instanceof ApiError
         ? err.message

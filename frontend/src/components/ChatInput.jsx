@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react';
 import PropTypes from 'prop-types';
-import { Send, Paperclip } from 'lucide-react';
+import { Send } from 'lucide-react';
 
 const MAX_CHARS = 2000;
 
@@ -58,32 +58,22 @@ export default function ChatInput({ onSend, disabled }) {
                     disabled={disabled}
                     aria-label="Message input"
                 />
-                <div className="flex items-center gap-1">
+                <div className="chat-input-toolbar">
                     {/* Character Counter (only show when typing or near limit) */}
                     {(charCount > 0 || isNearLimit) && (
                         <span
-                            className={`text-xs px-2 ${
+                            className={`chat-char-count ${
                                 isAtLimit
-                                    ? 'text-red-500'
+                                    ? 'chat-char-count-limit'
                                     : isNearLimit
-                                    ? 'text-amber-500'
-                                    : 'text-gray-500 dark:text-gray-400'
+                                    ? 'chat-char-count-warning'
+                                    : ''
                             }`}
                         >
                             {charCount}/{MAX_CHARS}
                         </span>
                     )}
-                    
-                    {/* Attachment button placeholder (for future) */}
-                    <button
-                        className="p-2 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50"
-                        disabled={true}
-                        title="Attachments (coming soon)"
-                        aria-label="Attach file"
-                    >
-                        <Paperclip size={18} />
-                    </button>
-                    
+
                     {/* Send button */}
                     <button
                         className="send-btn"
@@ -97,7 +87,8 @@ export default function ChatInput({ onSend, disabled }) {
                 </div>
             </div>
             <p className="input-hint">
-                Press <strong>Enter</strong> to send · <strong>Shift+Enter</strong> for new line ·
+                Press <strong>Enter</strong> to send · <strong>Shift+Enter</strong> for new line
+                <span className="input-hint-separator">•</span>
                 For emergencies call <strong>999 / 911</strong>
             </p>
         </div>

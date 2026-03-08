@@ -5,7 +5,6 @@ import ChatWindow from './components/ChatWindow';
 import ChatInput from './components/ChatInput';
 import { SettingsPanel } from './components/layout/SettingsPanel';
 import { useChat } from './contexts/ChatContext';
-import { useTheme } from './contexts/ThemeContext';
 
 export default function App() {
   const [showSettings, setShowSettings] = useState(false);
@@ -20,8 +19,6 @@ export default function App() {
     openConversation,
     deleteConversation,
   } = useChat();
-  const { isDark } = useTheme();
-
   // Global keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -74,27 +71,25 @@ export default function App() {
       <main className="chat-area" role="main">
         {/* Top Bar */}
         <header className="chat-topbar">
-          {/* Mobile: Add padding to account for hamburger button */}
-          <div className="lg:hidden w-12" aria-hidden="true" />
-          
-          <div className="topbar-favicon" aria-hidden="true">🩺</div>
-          <h1 className="topbar-title">Medical Triage Assistant</h1>
-          <div className="flex items-center gap-2">
+          <div className="topbar-copy">
+            <div className="topbar-favicon" aria-hidden="true">🩺</div>
+            <div>
+              <h1 className="topbar-title">Medical Triage Assistant</h1>
+              <p className="topbar-subtitle">Evidence-based health guidance with citations and safety framing</p>
+            </div>
+          </div>
+          <div className="topbar-actions">
             <div className="topbar-pill" role="status">
               <span className="topbar-pill-dot" aria-hidden="true" />
-              AI-Powered
+              Source-backed
             </div>
             <button
               onClick={() => setShowSettings(true)}
-              className="p-2.5 rounded-xl hover:bg-white/10 dark:hover:bg-white/5 transition-all duration-300 hover:scale-105 active:scale-95"
+              className="topbar-settings-btn"
               title="Settings (Ctrl+,)"
               aria-label="Open settings"
-              style={{
-                backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(255, 255, 255, 0.1)'
-              }}
             >
-              <Settings className="w-5 h-5" style={{ color: 'var(--text-secondary)' }} />
+              <Settings size={18} />
             </button>
           </div>
         </header>
