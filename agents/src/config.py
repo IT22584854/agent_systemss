@@ -3,14 +3,16 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+# Always load from agents/.env regardless of working directory
+_AGENTS_ROOT = Path(__file__).resolve().parent.parent
+load_dotenv(_AGENTS_ROOT / ".env")
 
 # === Model Configuration ===
 LLM_MODEL = os.getenv("LLM_MODEL", "gpt-4o")
 LLM_TEMPERATURE = float(os.getenv("LLM_TEMPERATURE", "0.0"))
 
 # === Paths ===
-AGENTS_ROOT = Path(__file__).resolve().parent.parent
+AGENTS_ROOT = _AGENTS_ROOT
 PROJECT_ROOT = AGENTS_ROOT.parent
 DATA_DIR = AGENTS_ROOT / "data"
 
@@ -37,6 +39,12 @@ TAVILY_INCLUDE_DOMAINS = os.getenv(
     "epid.gov.lk,health.gov.lk"
 ).split(",")
 TAVILY_MAX_RESULTS = int(os.getenv("TAVILY_MAX_RESULTS", "5"))
+
+# === Supabase Configuration ===
+SUPABASE_URL = os.getenv("SUPABASE_URL", "")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
+SUPABASE_TABLE = os.getenv("SUPABASE_TABLE", "sl_med_corpus")
+SUPABASE_PAGE_SIZE = int(os.getenv("SUPABASE_PAGE_SIZE", "1000"))
 
 # === Medical Disclaimer ===
 MEDICAL_DISCLAIMER = os.getenv(

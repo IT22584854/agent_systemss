@@ -2,7 +2,6 @@
 import os
 import uuid
 import chromadb
-from langchain_community.document_loaders import TextLoader
 import sys
 from typing import Any, Dict, List
 from typing_extensions import Literal
@@ -43,73 +42,16 @@ from tavily import TavilyClient
 from agents.src.utils import setup_logger, retry_on_error, create_error_response
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
-import re
 from dotenv import load_dotenv
 load_dotenv()
 from agents.src.graph.state import AgentState, AgentInputState
+from agents.src.supabase_loader import load_documents_from_supabase
 
 logger = setup_logger("medical_info_agent")
 
-def extract_source_reference(text: str) -> str:
-    """
-    Extract 'Source URL' or 'Source PDF' from document text.
-    Priority:
-        1. Source URL
-        2. Source PDF
-    Returns:
-        URL string if found,
-        'Unknown' if neither found.
-    """
-    try:
-        # Search for Source URL
-        url_match = re.search(r"Source URL:\s*(.+)", text)
-        if url_match:
-            return url_match.group(1).strip()
-
-        # If no URL, search for Source PDF
-        pdf_match = re.search(r"Source PDF:\s*(.+)", text)
-        if pdf_match:
-            return pdf_match.group(1).strip()
-
-        # If neither found
-        return "Unknown"
-
-    except Exception as e:
-        logger.warning(f"Error extracting source reference: {e}")
-        return "Unknown"
-    
-
-# ===== DATA INGEST (Always needed for BM25) =====
-data_path = AGENTS_ROOT / "sl_medical_agent_md"
-
-logger.info(f"Loading medical data from {data_path}")
-
-# Load all markdown files from the data folder
-all_documents = []
-md_files = list(data_path.glob("*.md"))
-logger.info(f"Found {len(md_files)} markdown files to process")
-
-for file_path in md_files:
-    try:
-        loader = TextLoader(str(file_path), encoding='utf-8')
-        file_docs = loader.load()
-
-        for doc in file_docs:
-            source_reference = extract_source_reference(doc.page_content)
-
-            # Use filename as fallback if no Source URL/PDF found
-            if source_reference == "Unknown":
-                source_reference = file_path.name
-
-            # Store inside document metadata
-            doc.metadata["source_reference"] = source_reference
-
-        all_documents.extend(file_docs)
-
-    except Exception as e:
-        logger.warning(f"Failed to load {file_path.name}: {e}")
-
-logger.info(f"Total documents loaded: {len(all_documents)}")
+# ===== DATA INGEST — load from Supabase =====
+all_documents = load_documents_from_supabase()
+logger.info(f"Total documents loaded from Supabase: {len(all_documents)}")
 
 # Split documents while preserving metadata
 character_splitter = RecursiveCharacterTextSplitter(
@@ -156,32 +98,39 @@ for doc in all_documents:
 
 logger.info(f"Created {len(dense_documents)} document chunks with preserved metadata")
 
-# ===== RETRIEVAL STACK (Persistent ChromaDB) =====
+# ===== RETRIEVAL STACK — rebuild ChromaDB fresh from Supabase data =====
 embedding_function = OpenAIEmbeddings()
 
-# Use persistent ChromaDB
 logger.info(f"Initializing ChromaDB with persist directory: {CHROMA_PERSIST_DIR}")
 chroma_client = chromadb.PersistentClient(path=CHROMA_PERSIST_DIR)
 
-# Check if collection exists, if not create it
+# Reuse the persisted collection if it already has documents, otherwise build from Supabase
 try:
-    existing_collection = chroma_client.get_collection(name=CHROMA_COLLECTION_NAME)
-    logger.info(f"Using existing ChromaDB collection: {CHROMA_COLLECTION_NAME}")
-    vectorstore = Chroma(
-        client=chroma_client,
-        collection_name=CHROMA_COLLECTION_NAME,
-        embedding_function=embedding_function
+    col = chroma_client.get_collection(name=CHROMA_COLLECTION_NAME)
+    if col.count() > 0:
+        logger.info(
+            f"Reusing cached ChromaDB collection '{CHROMA_COLLECTION_NAME}' "
+            f"({col.count()} docs) — skipping re-embed"
+        )
+        vectorstore = Chroma(
+            client=chroma_client,
+            collection_name=CHROMA_COLLECTION_NAME,
+            embedding_function=embedding_function,
+        )
+    else:
+        raise ValueError("Collection exists but is empty — rebuilding")
+except Exception as _cache_miss:
+    logger.info(
+        f"ChromaDB cache miss ({_cache_miss}). "
+        f"Building collection from {len(dense_documents)} chunks ..."
     )
-    logger.info(f"Loaded existing collection with {vectorstore._collection.count()} documents") 
-except Exception:
-    # Create new collection with all documents
-    logger.info(f"Collection '{CHROMA_COLLECTION_NAME}' not found, creating with {len(dense_documents)} documents...")
     vectorstore = Chroma.from_documents(
         documents=dense_documents,
         embedding=embedding_function,
         collection_name=CHROMA_COLLECTION_NAME,
-        client=chroma_client
+        client=chroma_client,
     )
+    logger.info(f"ChromaDB collection built with {vectorstore._collection.count()} documents")
 
 # Combine a dense retriever with BM25
 dense_retriever = vectorstore.as_retriever(search_kwargs={"k": RETRIEVAL_TOP_K})
