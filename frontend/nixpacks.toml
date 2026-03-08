@@ -2,4 +2,4 @@
 cmds = []
 
 [phases.build]
-cmds = ["npm install --include=dev --force && chmod -R 755 node_modules/.bin && npm run build"]
+cmds = ["npm install --include=dev && npm run build"]
