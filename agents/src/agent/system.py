@@ -17,12 +17,20 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from agents.src.graph.state import AgentState, AgentInputState
-from agents.src.agent.triage import graph as triage_graph
+from agents.src.agent.intent_classifier import graph as intent_classifier_graph
 from agents.src.agent.medical_info import medical_info_graph
 from agents.src.utils import setup_logger
 
 # ===== LOGGING =====
 logger = setup_logger("agent_supervisor")
+
+# ===== DATABASE LOGGING =====
+try:
+    from database.agent_logging import AgentStateLogger
+    DB_LOGGING_ENABLED = True
+except ImportError:
+    DB_LOGGING_ENABLED = False
+    logger.warning("Database logging not available (database module not found)")
 
 
 def _copy_messages(messages: List[BaseMessage]) -> List[BaseMessage]:
@@ -37,19 +45,19 @@ def _build_run_config(state: AgentState, run_name: str) -> Dict[str, Any]:
         "metadata": {
             "session_id": session_id,
             "active_agent": state.get("active_agent"),
-            "triage_turns": state.get("triage_turns"),
+            "intent_classifier_turns": state.get("intent_classifier_turns"),
             "has_rag_query": bool(state.get("rag_query")),
         },
     }
 
 
-@traceable(name="triage_agent")
-def triage_agent(state: AgentState):
-    """Run the triage sub-graph to gather immediate-care data."""
-    logger.info("Invoking triage sub-graph")
+@traceable(name="intent_classifier_agent")
+def intent_classifier_agent(state: AgentState):
+    """Run the intent classifier sub-graph to gather user intent and clarify needs."""
+    logger.info("Invoking intent classifier sub-graph")
     
     try:
-        result_state = triage_graph.invoke(state, config=_build_run_config(state, "triage_graph"))
+        result_state = intent_classifier_graph.invoke(state, config=_build_run_config(state, "intent_classifier_graph"))
         updates = {}
         _sentinel = object()
         
@@ -57,20 +65,20 @@ def triage_agent(state: AgentState):
             value = result_state.get(key, _sentinel)
             if value is not _sentinel:
                 updates[key] = value
-        updates["triage_turns"] = state.get("triage_turns", 0) + 1
+        updates["intent_classifier_turns"] = state.get("intent_classifier_turns", 0) + 1
 
         active_agent = result_state.get("active_agent")
         rag_query = result_state.get("rag_query")
-        needs_follow_up = active_agent == "triage"
+        needs_follow_up = active_agent == "intent_classifier"
 
         if needs_follow_up:
-            logger.info("Triage needs follow-up, returning to user")
+            logger.info("Intent classifier needs follow-up, returning to user")
             updates["new_message"] = True
             updates["rag_query"] = None
             return Command(goto="finalize_response", update=updates)
 
         if rag_query:
-            logger.info(f"Triage complete, routing to medical info with query: {rag_query[:50]}...")
+            logger.info(f"Intent classification complete, routing to medical info with query: {rag_query[:50]}...")
             return Command(goto="medical_info_agent", update=updates)
 
         # Fallback: end the run without advancing if no RAG query was produced
@@ -79,7 +87,7 @@ def triage_agent(state: AgentState):
         return Command(goto="finalize_response", update=updates)
         
     except Exception as e:
-        logger.error(f"Error in triage_agent: {e}")
+        logger.error(f"Error in intent_classifier_agent: {e}")
         return Command(goto="finalize_response", update={"new_message": True})
 
 
@@ -95,8 +103,8 @@ def medical_info_agent(state: AgentState) -> Command[Literal["finalize_response"
         if rag_query:
             synthetic_message = HumanMessage(
                 content=rag_query,
-                name="triage_summary",
-                additional_kwargs={"source": "triage_rag"},
+                name="intent_classifier_summary",
+                additional_kwargs={"source": "intent_classifier_rag"}, 
             )
             med_state = dict(state)
             med_messages = _copy_messages(state.get("messages", []))
@@ -126,7 +134,7 @@ def medical_info_agent(state: AgentState) -> Command[Literal["finalize_response"
             for msg in potential_new:
                 # Filter out the synthetic trigger message if it appears
                 if (isinstance(msg, HumanMessage) and 
-                    msg.additional_kwargs.get("source") == "triage_rag"):
+                    msg.additional_kwargs.get("source") == "intent_classifier_rag"):
                     continue
                 new_messages.append(msg)
                 
@@ -158,11 +166,11 @@ def finalize_response(state: AgentState):
 
 # ===== BUILD WORKFLOW =====
 workflow = StateGraph(AgentState, input_schema=AgentInputState)
-workflow.add_node("triage_agent", triage_agent)
+workflow.add_node("intent_classifier_agent", intent_classifier_agent)
 workflow.add_node("medical_info_agent", medical_info_agent)
 workflow.add_node("finalize_response", finalize_response)
 
-workflow.add_edge(START, "triage_agent")
+workflow.add_edge(START, "intent_classifier_agent")
 from langgraph.checkpoint.memory import MemorySaver
 
 # Initialize MemorySaver (In-Memory Persistence)
@@ -180,19 +188,38 @@ if __name__ == "__main__":
     agent_supervisor_graph.get_graph().draw_mermaid_png(output_file_path=output_path)
     logger.info(f"Graph exported to {output_path.resolve()}")
 
+    # Initialize database logger if available
+    db_logger = None
+    if DB_LOGGING_ENABLED:
+        try:
+            db_logger = AgentStateLogger()
+            logger.info("✅ Database logging enabled")
+        except Exception as e:
+            logger.warning(f"Could not initialize database logger: {e}")
+            db_logger = None
+    else:
+        logger.info("ℹ️  Database logging disabled (not configured)")
+
     # Use a fixed session ID for the demo
     session_id = "demo-session"
     config = {"configurable": {"thread_id": session_id}}
     
     logger.info(f"Starting Session: {session_id}")
-    logger.info("Triage/medical workflow ready. Type 'quit' to exit.")
+    logger.info("Intent Classifier/Medical Info workflow ready. Type 'quit' to exit.")
     
     while True:
         user_input = input("User: ").strip()
         if user_input.lower() in {"quit", "exit"}:
+            # End conversation in database
+            if db_logger:
+                db_logger.end_conversation(session_id)
+                logger.info("📊 Conversation saved to database")
             break
         
-        graph_input = {"messages": [HumanMessage(content=user_input)]}
+        graph_input = {
+            "messages": [HumanMessage(content=user_input)],
+            "session_id": session_id  # Add session_id to state
+        }
 
         # Use invoke for simple synchronous execution in CLI
         result = agent_supervisor_graph.invoke(graph_input, config=config)
@@ -211,3 +238,16 @@ if __name__ == "__main__":
             logger.info("Agent: (no response)")
         else:
             logger.info(f"Agent: {reply_message.content}")
+            
+            # Log interaction to database
+            if db_logger:
+                try:
+                    db_logger.log_interaction(
+                        state=result,
+                        session_id=session_id,
+                        category="general",  # or auto-detect from content
+                        language="en"
+                    )
+                    logger.info("💾 Interaction logged to database")
+                except Exception as e:
+                    logger.error(f"Failed to log to database: {e}")

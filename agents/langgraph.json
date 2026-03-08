@@ -1,7 +1,0 @@
-{
-  "graphs": {
-    "agent": "./src/agent/system.py:agent_supervisor_graph"
-  },
-  "env": ".env",
-  "dependencies": ["./requirements.txt"]
-}

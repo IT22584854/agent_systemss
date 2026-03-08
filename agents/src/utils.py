@@ -15,7 +15,7 @@ def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
     if not logger.handlers:
         handler = logging.StreamHandler()
         formatter = logging.Formatter(
-            "%(asctime)s | %(name)s | %(levelname)s | %(message)s",
+            "%(asctime)s.%(msecs)03d | %(levelname)-7s | %(name)s | %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S"
         )
         handler.setFormatter(formatter)
@@ -25,38 +25,73 @@ def setup_logger(name: str, level: int = logging.INFO) -> logging.Logger:
 
 
 # === Input Sanitization ===
-def sanitize_input(text: str, max_length: int = MAX_INPUT_LENGTH) -> str:
+DANGEROUS_TOKENS = frozenset([
+    "<|im_start|>", "<|im_end|>", "<|system|>", "[INST]", "<<SYS>>",
+])
+
+_FAST_PATTERNS = None
+
+def _get_compiled_patterns():
+    """Lazy compile patterns once, reuse forever."""
+    global _FAST_PATTERNS
+    if _FAST_PATTERNS is None:
+        _FAST_PATTERNS = [
+            (re.compile(r"(?i)ignore.{0,20}(previous|all).{0,20}instructions?"), "instruction_override"),
+            (re.compile(r"(?i)you are now|act as a|pretend to be"), "role_hijack"),
+            (re.compile(r"(?i)show.{0,15}system.{0,15}prompt"), "prompt_extraction"),
+        ]
+    return _FAST_PATTERNS
+
+
+def detect_injection_fast(text: str) -> tuple[bool, str]:
     """
-    Sanitize user input before processing.
+    Fast injection detection with early exit.
+    Target: <1ms for typical inputs.
+    """
+    text_lower = text.lower()
     
-    - Enforces maximum length
-    - Removes control characters (keeps newlines, tabs)
-    - Normalizes unicode
-    - Strips null bytes
-    - Normalizes whitespace
-    """
+    # TIER 1: O(n) substring checks 
+    for token in DANGEROUS_TOKENS:
+        if token.lower() in text_lower:
+            return (True, "dangerous_token")
+    
+    # TIER 2: Only 3 critical patterns 
+    for pattern, injection_type in _get_compiled_patterns():
+        if pattern.search(text):
+            return (True, injection_type)
+    
+    return (False, "")
+
+
+def sanitize_input(
+    text: str, 
+    max_length: int = 2000,
+    check_injection: bool = True
+) -> str:
+    """Sanitize with minimal latency impact."""
     if not text:
         return ""
     
-    # Enforce length limit
+    # prevents everything else from being slow
     if len(text) > max_length:
         text = text[:max_length]
     
-    # Normalize unicode (NFKC normalizes compatibility characters)
-    text = unicodedata.normalize("NFKC", text)
+    # Fast path: skip sanitization for short, simple inputs
+    if len(text) < 500 and text.isascii() and not check_injection:
+        return text.strip()
     
-    # Remove null bytes
+    # Unicode + control char removal (~0.05ms)
     text = text.replace("\x00", "")
-    
-    # Remove control characters except newline, tab, carriage return
     text = re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]", "", text)
     
-    # Normalize excessive whitespace (but preserve single newlines)
-    text = re.sub(r"[ \t]+", " ", text)
-    text = re.sub(r"\n{3,}", "\n\n", text)
+    # Injection check (~0.1ms with fast patterns)
+    if check_injection:
+        is_suspicious, injection_type = detect_injection_fast(text)
+        if is_suspicious:
+            # Log async if possible, don't block
+            text = f"[FLAGGED:{injection_type}] {text}"
     
     return text.strip()
-
 
 # === Retry Decorator ===
 T = TypeVar("T")
