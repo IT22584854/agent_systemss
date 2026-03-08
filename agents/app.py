@@ -29,6 +29,7 @@ if "agents" not in sys.modules:
 
 from langchain_core.messages import AIMessage, HumanMessage
 
+from backend.agent_service import extract_sources
 from agents.src.utils import sanitize_input, setup_logger
 
 logger = setup_logger("api_server")
@@ -55,7 +56,7 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     response: str
-    sources: List[str]
+    sources: List[dict]
     session_id: str
 
 
@@ -109,7 +110,9 @@ async def chat(req: ChatRequest):
         "I'm sorry, I couldn't generate a response. Please try again.",
     )
 
-    return ChatResponse(response=ai_reply, sources=[], session_id=session_id)
+    sources = extract_sources(messages)
+
+    return ChatResponse(response=ai_reply, sources=sources, session_id=session_id)
 
 
 @app.delete("/api/session/{session_id}")
