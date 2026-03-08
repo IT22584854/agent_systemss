@@ -90,7 +90,7 @@ async def chat(req: ChatRequest):
         agent_supervisor_graph = get_agent_graph()
         result = await agent_supervisor_graph.ainvoke(state, config=config)
     except Exception as e:
-        logger.error(f"Graph invocation error for session {session_id}: {e}")
+        logger.exception(f"Graph invocation error for session {session_id}: {e}")
         raise HTTPException(
             status_code=503,
             detail="Agent backend is unavailable or still initializing. Please try again.",
