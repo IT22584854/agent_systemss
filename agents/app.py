@@ -5,6 +5,8 @@ import os
 import sys
 import types
 import uuid
+from functools import lru_cache
+from importlib import import_module
 from pathlib import Path
 from typing import List, Optional
 
@@ -27,7 +29,6 @@ if "agents" not in sys.modules:
 
 from langchain_core.messages import AIMessage, HumanMessage
 
-from agents.src.agent.system import agent_supervisor_graph
 from agents.src.utils import sanitize_input, setup_logger
 
 logger = setup_logger("api_server")
@@ -58,10 +59,17 @@ class ChatResponse(BaseModel):
     session_id: str
 
 
+@lru_cache(maxsize=1)
+def get_agent_graph():
+    """Load the LangGraph workflow lazily so health checks can succeed even if RAG startup is slow."""
+    system_module = import_module("agents.src.agent.system")
+    return system_module.agent_supervisor_graph
+
+
 # ── Routes ────────────────────────────────────────────────────────────────────
 @app.get("/api/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "service": "backend"}
 
 
 @app.post("/api/chat", response_model=ChatResponse)
@@ -79,12 +87,13 @@ async def chat(req: ChatRequest):
     config = {"configurable": {"thread_id": session_id}}
 
     try:
+        agent_supervisor_graph = get_agent_graph()
         result = await agent_supervisor_graph.ainvoke(state, config=config)
     except Exception as e:
         logger.error(f"Graph invocation error for session {session_id}: {e}")
         raise HTTPException(
-            status_code=500,
-            detail="Agent encountered an error. Please try again.",
+            status_code=503,
+            detail="Agent backend is unavailable or still initializing. Please try again.",
         )
 
     # Extract the last AI message as the response text
