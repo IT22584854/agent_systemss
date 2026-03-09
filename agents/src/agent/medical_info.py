@@ -11,7 +11,7 @@ from langgraph.types import Command
 from pathlib import Path
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.vectorstores import InMemoryVectorStore
-from langchain_openai import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings, ChatOpenAI
 from langchain_community.vectorstores import Chroma
 from langchain_core.documents import Document
 from langchain_community.retrievers import BM25Retriever
@@ -21,6 +21,15 @@ from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
 from langsmith import traceable
 from pydantic import BaseModel, Field
+from agents.src.config import (
+    LLM_MODEL, LLM_TEMPERATURE,
+    LLM_PROVIDER,
+    CUSTOM_LLM_API_KEY,
+    CUSTOM_LLM_BASE_URL,
+    CUSTOM_LLM_MODEL,
+    CUSTOM_LLM_MAX_TOKENS,
+    CUSTOM_LLM_TEMPERATURE,
+)
 
 # Path setup
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
@@ -246,7 +255,20 @@ def web_search(query: str) -> str:
         return json.dumps({"error": str(e), "web_results": []})
 
 web_search_tool = web_search
-response_model = init_chat_model(LLM_MODEL, temperature=LLM_TEMPERATURE)
+
+# OpenAI path kept for later use
+# response_model = init_chat_model(LLM_MODEL, temperature=LLM_TEMPERATURE)
+
+if LLM_PROVIDER == "custom_openai_compatible":
+    response_model = ChatOpenAI(
+        api_key=CUSTOM_LLM_API_KEY,
+        base_url=CUSTOM_LLM_BASE_URL,
+        model=CUSTOM_LLM_MODEL,
+        temperature=CUSTOM_LLM_TEMPERATURE,
+        max_tokens=CUSTOM_LLM_MAX_TOKENS,
+    )
+else:
+    response_model = init_chat_model(LLM_MODEL, temperature=LLM_TEMPERATURE)
 
 
 def _latest_user_text(messages: List[BaseMessage]) -> str:

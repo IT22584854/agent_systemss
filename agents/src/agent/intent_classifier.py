@@ -17,7 +17,19 @@ from agents.src.graph.state import ClarifyWithUser, AgentState, AgentInputState
 from agents.src.prompts.triage_prompt import intent_classifier_prompt
 from agents.src.config import LLM_MODEL, LLM_TEMPERATURE
 from agents.src.utils import setup_logger, sanitize_input, retry_on_error, create_error_response
+from langchain_openai import ChatOpenAI
 
+#
+from agents.src.config import (
+    LLM_MODEL, LLM_TEMPERATURE,
+    LLM_PROVIDER,
+    CUSTOM_LLM_API_KEY,
+    CUSTOM_LLM_BASE_URL,
+    CUSTOM_LLM_MODEL,
+    CUSTOM_LLM_MAX_TOKENS,
+    CUSTOM_LLM_TEMPERATURE,
+)
+#
 # ===== LOGGING =====
 logger = setup_logger("intent_classifier_agent")
 
@@ -32,8 +44,22 @@ def get_today_str() -> str:
 from dotenv import load_dotenv
 load_dotenv()
 
-# Initialize model with centralized config
-model = init_chat_model(model=LLM_MODEL, temperature=LLM_TEMPERATURE)
+# OpenAI path kept for later use
+# model = init_chat_model(model=LLM_MODEL, temperature=LLM_TEMPERATURE)
+
+if LLM_PROVIDER == "custom_openai_compatible":
+    model = ChatOpenAI(
+        api_key=CUSTOM_LLM_API_KEY,
+        base_url=CUSTOM_LLM_BASE_URL,
+        model=CUSTOM_LLM_MODEL,
+        temperature=CUSTOM_LLM_TEMPERATURE,
+        max_tokens=CUSTOM_LLM_MAX_TOKENS,
+    )
+else:
+    model = init_chat_model(model=LLM_MODEL, temperature=LLM_TEMPERATURE)
+
+
+
 
 # ===== WORKFLOW NODES =====
 @traceable(name="clarify_with_user")

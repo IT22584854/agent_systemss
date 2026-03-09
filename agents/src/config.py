@@ -51,3 +51,11 @@ MEDICAL_DISCLAIMER = os.getenv(
     "MEDICAL_DISCLAIMER",
     "\n\n⚕️ MEDICAL DISCLAIMER: This information is for educational purposes only and should not be considered as medical advice. Always consult with a qualified healthcare professional for medical concerns, diagnosis, or treatment."
 )
+
+# === Custom LLM Configuration ===
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
+CUSTOM_LLM_API_KEY = os.getenv("CUSTOM_LLM_API_KEY", "")
+CUSTOM_LLM_BASE_URL = os.getenv("CUSTOM_LLM_BASE_URL", "")
+CUSTOM_LLM_MODEL = os.getenv("CUSTOM_LLM_MODEL", "Qwen/Qwen3-1.7B")
+CUSTOM_LLM_MAX_TOKENS = int(os.getenv("CUSTOM_LLM_MAX_TOKENS", "512"))
+CUSTOM_LLM_TEMPERATURE = float(os.getenv("CUSTOM_LLM_TEMPERATURE", "0.7"))
