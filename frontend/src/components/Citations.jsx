@@ -1,5 +1,7 @@
 import PropTypes from 'prop-types';
-import { BookOpen, ExternalLink, FileText, Globe2, Quote } from 'lucide-react';
+import { BookOpen, ExternalLink } from 'lucide-react';
+
+const MAX_VISIBLE_SOURCES = 5;
 
 function formatHostname(url) {
     try {
@@ -42,9 +44,10 @@ function normalizeSources(sources) {
         unique.push({
             ...src,
             label,
-            hostname: src.url ? formatHostname(src.url) : '',
-            excerpt: (src.excerpt || '').trim(),
+            href: src.url || (typeof src.source === 'string' && /^https?:\/\//i.test(src.source) ? src.source : ''),
         });
+
+        if (unique.length >= MAX_VISIBLE_SOURCES) break;
     }
 
     return unique;
@@ -69,47 +72,21 @@ export default function Citations({ sources }) {
 
             <div className="citations-panel">
                 {unique.map((src, index) => {
-                    const content = (
-                        <>
-                            <div className="citation-topline">
-                                <div className="citation-badge">{index + 1}</div>
-                                <div className="citation-main">
-                                    <div className="citation-name-row">
-                                        {src.url ? <Globe2 size={14} /> : <FileText size={14} />}
-                                        <span className="citation-name">{src.label}</span>
-                                        {src.url && <ExternalLink size={13} className="citation-link-icon" />}
-                                    </div>
-                                    <div className="citation-meta-row">
-                                        {src.hostname && <span className="citation-meta-pill">{src.hostname}</span>}
-                                        {src.chunk_index !== undefined && src.chunk_index !== null && (
-                                            <span className="citation-meta-pill">Chunk {src.chunk_index}</span>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                            {src.excerpt && (
-                                <p className="citation-excerpt">
-                                    <Quote size={12} className="citation-excerpt-icon" />
-                                    <span>{src.excerpt}</span>
-                                </p>
-                            )}
-                        </>
-                    );
-
-                    return src.url ? (
+                    return src.href ? (
                         <a
                             key={`${src.label}-${index}`}
-                            href={src.url}
+                            href={src.href}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="citation-card citation-card-link"
+                            className="citation-link-item"
                         >
-                            {content}
+                            <span className="citation-link-label">{src.label}</span>
+                            <ExternalLink size={13} className="citation-link-icon" />
                         </a>
                     ) : (
-                        <div key={`${src.label}-${index}`} className="citation-card" title={src.label}>
-                            {content}
-                        </div>
+                        <span key={`${src.label}-${index}`} className="citation-link-item citation-link-item-static" title={src.label}>
+                            <span className="citation-link-label">{src.label}</span>
+                        </span>
                     );
                 })}
             </div>

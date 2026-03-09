@@ -935,7 +935,7 @@ html, body, #root {
 ══════════════════════════════════════════════ */
 .citations-wrapper {
   margin-top: 18px;
-  padding: 14px 16px 16px;
+  padding: 14px 16px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
@@ -975,70 +975,10 @@ html, body, #root {
 }
 
 .citations-panel {
-  display: grid;
+  display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   animation: fadeIn .2s ease;
-}
-
-.citation-card {
-  background: var(--bg-input);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 14px;
-  font-size: 12.5px;
-  display: block;
-  text-decoration: none;
-  color: inherit;
-  transition: border-color .2s, transform .2s, box-shadow .2s;
-}
-
-.citation-card:hover {
-  border-color: rgba(25, 195, 125, 0.45);
-}
-
-.citation-card-link:hover {
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-md);
-}
-
-.citation-topline {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.citation-badge {
-  min-width: 28px;
-  height: 28px;
-  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
-  color: #fff;
-  border-radius: var(--r-full);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.citation-main {
-  flex: 1;
-  min-width: 0;
-}
-
-.citation-name-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--text-primary);
-  min-width: 0;
-}
-
-.citation-name {
-  font-size: 13.5px;
-  font-weight: 600;
-  line-height: 1.4;
-  word-break: break-word;
 }
 
 .citation-link-icon {
@@ -1046,42 +986,42 @@ html, body, #root {
   flex-shrink: 0;
 }
 
-.citation-meta-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.citation-meta-pill {
+.citation-link-item {
+  min-height: 38px;
+  max-width: 100%;
+  padding: 0 14px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border);
+  background: var(--bg-input);
+  color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
-  min-height: 24px;
-  padding: 0 10px;
-  border-radius: var(--r-full);
-  background: var(--bg-sidebar-item);
-  border: 1px solid var(--border-light);
-  color: var(--text-muted);
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.citation-excerpt {
-  display: flex;
-  align-items: flex-start;
   gap: 8px;
-  color: var(--text-secondary);
-  font-size: 12px;
-  margin-top: 12px;
-  line-height: 1.65;
-  padding-top: 12px;
-  border-top: 1px solid var(--border-light);
+  text-decoration: none;
+  transition: all 0.2s ease;
 }
 
-.citation-excerpt-icon {
-  color: var(--text-muted);
-  flex-shrink: 0;
-  margin-top: 2px;
+.citation-link-item:hover {
+  border-color: rgba(25, 195, 125, 0.45);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.citation-link-item-static {
+  cursor: default;
+}
+
+.citation-link-item-static:hover {
+  transform: none;
+}
+
+.citation-link-label {
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 @media (max-width: 640px) {
@@ -1089,12 +1029,13 @@ html, body, #root {
     padding: 12px;
   }
 
-  .citation-card {
-    padding: 12px;
+  .citation-link-item {
+    width: 100%;
+    justify-content: space-between;
   }
 
-  .citation-name {
-    font-size: 13px;
+  .citation-link-label {
+    max-width: calc(100% - 24px);
   }
 }
 
