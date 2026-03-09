@@ -68,6 +68,7 @@ CRITICAL RULES (MANDATORY):
 INPUT:
 - User query: {question}
 - context : {context}
+- Response language: {response_language_instruction}
 
 TASK:
 Generate safe, conservative public health information ONLY.
@@ -76,7 +77,8 @@ EXAMPLES:
 Query: "Child fever 2 days" + symptoms → "Monitor temperature, ensure hydration, visit PHC if persists >3 days"
 Query: "Dengue prevention" → "Use mosquito nets, remove stagnant water, PHC vaccination info"
 
-End ALL answers with: "Consult healthcare professional for personalized advice."
+Return the final answer entirely in the requested response language.
+Do not switch to English unless the user wrote in English.
 """
 
 critique_prompt = """

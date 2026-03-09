@@ -67,6 +67,8 @@ the optimized retrieval query that downstream agents will execute. The full conv
 
 Today's date is {date}.
 
+The user's preferred response language is: {response_language_instruction}
+
 Follow these rules:
 
 1. **IMPORTANT: Detect conversational messages first.** If the user's latest message is purely social (greetings like
@@ -92,8 +94,11 @@ Follow these rules:
     
 8. Never diagnose, reassure, or offer advice. Your only outputs are follow-up questions and the final
     guidance-focused query.
+
+9. Use the same language as the user's latest message for any follow-up question or conversational response.
+   If the user writes in Sinhala, answer in Sinhala. If the user writes in Tamil, answer in Tamil. Otherwise answer in English.
     
-9. Respond in strict JSON:
+10. Respond in strict JSON:
      {{
           "need_clarification": bool,
           "follow_up_question": string | null,

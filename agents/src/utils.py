@@ -94,6 +94,40 @@ def sanitize_input(
     
     return text.strip()
 
+
+def detect_user_language(text: str) -> str:
+    """Detect the user's language from script cues, defaulting to English."""
+    if not text:
+        return "en"
+
+    for char in text:
+        codepoint = ord(char)
+        if 0x0D80 <= codepoint <= 0x0DFF:
+            return "si"
+        if 0x0B80 <= codepoint <= 0x0BFF:
+            return "ta"
+
+    return "en"
+
+
+def get_language_instruction(language: str) -> str:
+    """Return a compact prompt instruction for the desired response language."""
+    instructions = {
+        "si": "Reply in Sinhala using Sinhala script.",
+        "ta": "Reply in Tamil using Tamil script.",
+        "en": "Reply in English.",
+    }
+    return instructions.get(language, instructions["en"])
+
+
+def get_medical_disclaimer(language: str, default_english_disclaimer: str) -> str:
+    """Return a localized medical disclaimer."""
+    localized = {
+        "si": "\n\n⚕️ වෛද්‍ය ප්‍රකාශනය: මෙම තොරතුරු අධ්‍යාපනික අරමුණු සඳහා පමණක් වන අතර වෛද්‍ය උපදෙස් ලෙස නොසලකන්න. රෝග ලක්ෂණ, නිරෝගීභාවය, හෝ ප්‍රතිකාර සඳහා සුදුසුකම් ලත් සෞඛ්‍ය වෘත්තිකයෙකුගෙන් උපදෙස් ලබාගන්න.",
+        "ta": "\n\n⚕️ மருத்துவ அறிவிப்பு: இந்த தகவல் கல்வி நோக்கத்திற்காக மட்டுமே வழங்கப்படுகிறது; இதை மருத்துவ ஆலோசனையாக கருத வேண்டாம். உடல்நலக் கவலைகள், நோயறிதல் அல்லது சிகிச்சைக்காக தகுதியான சுகாதார நிபுணரை அணுகவும்.",
+    }
+    return localized.get(language, default_english_disclaimer)
+
 # === Retry Decorator ===
 T = TypeVar("T")
 
@@ -141,11 +175,24 @@ def retry_on_error(
 
 
 # === Error Response Helper ===
-def create_error_response(error_type: str = "general") -> str:
+def create_error_response(error_type: str = "general", language: str = "en") -> str:
     """Generate a user-friendly error message."""
     messages = {
-        "llm": "I'm having trouble processing your request right now. Please try again in a moment.",
-        "retrieval": "I couldn't retrieve the relevant information. Please try rephrasing your question.",
-        "general": "An unexpected error occurred. Please try again.",
+        "en": {
+            "llm": "I'm having trouble processing your request right now. Please try again in a moment.",
+            "retrieval": "I couldn't retrieve the relevant information. Please try rephrasing your question.",
+            "general": "An unexpected error occurred. Please try again.",
+        },
+        "si": {
+            "llm": "දැන් ඔබගේ ඉල්ලීම සැකසීමට මට අපහසුයි. ටික වේලාවකින් නැවත උත්සාහ කරන්න.",
+            "retrieval": "අදාළ තොරතුරු ලබාගැනීමට මට නොහැකි විය. කරුණාකර ඔබගේ ප්‍රශ්නය වෙනත් ආකාරයකින් නැවත යොමු කරන්න.",
+            "general": "අපේක්ෂා නොකළ දෝෂයක් ඇතිවිය. කරුණාකර නැවත උත්සාහ කරන්න.",
+        },
+        "ta": {
+            "llm": "உங்கள் கோரிக்கையை தற்போது செயலாக்க முடியவில்லை. சிறிது நேரத்தில் மீண்டும் முயற்சிக்கவும்.",
+            "retrieval": "தொடர்புடைய தகவலை பெற முடியவில்லை. தயவுசெய்து உங்கள் கேள்வியை வேறு விதமாக மீண்டும் கேளுங்கள்.",
+            "general": "எதிர்பாராத பிழை ஒன்று ஏற்பட்டது. தயவுசெய்து மீண்டும் முயற்சிக்கவும்.",
+        },
     }
-    return messages.get(error_type, messages["general"])
+    localized = messages.get(language, messages["en"])
+    return localized.get(error_type, localized["general"])

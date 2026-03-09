@@ -50,7 +50,14 @@ from agents.src.config import (
     TAVILY_INCLUDE_DOMAINS, TAVILY_MAX_RESULTS, MEDICAL_DISCLAIMER
 )
 from tavily import TavilyClient
-from agents.src.utils import setup_logger, retry_on_error, create_error_response
+from agents.src.utils import (
+    setup_logger,
+    retry_on_error,
+    create_error_response,
+    detect_user_language,
+    get_language_instruction,
+    get_medical_disclaimer,
+)
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode
 from dotenv import load_dotenv
@@ -376,7 +383,7 @@ def tool_selector(state: AgentState) -> Command[Literal["retrieve", "web_search"
         logger.error(f"Error in generate_query_or_respond: {e}")
         return Command(
             goto=END,
-            update={"messages": [AIMessage(content=create_error_response("llm"))]},
+            update={"messages": [AIMessage(content=create_error_response("llm", language=detect_user_language(_latest_user_text(state.get("messages", [])))))]},
         )
 
 
@@ -474,7 +481,9 @@ def generate_answer(state: AgentState):
     import json
     
     try:
-        question = state.get("rag_query") or _latest_user_text(state["messages"])
+        latest_user_text = _latest_user_text(state["messages"])
+        response_language = detect_user_language(latest_user_text)
+        question = state.get("rag_query") or latest_user_text
         
         # Use critique feedback if available
         critique_feedback = state.get("critique_feedback")
@@ -516,10 +525,14 @@ def generate_answer(state: AgentState):
             context = raw_content
         
         if critique_feedback:
-            prompt = f"{generate_prompt.format(question=question, context=context)}\n\nPREVIOUS FEEDBACK TO ADDRESS:\n{critique_feedback}"
+            prompt = f"{generate_prompt.format(question=question, context=context, response_language_instruction=get_language_instruction(response_language))}\n\nPREVIOUS FEEDBACK TO ADDRESS:\n{critique_feedback}"
             logger.info("Generating answer with critique feedback")
         else:
-            prompt = generate_prompt.format(question=question, context=context)
+            prompt = generate_prompt.format(
+                question=question,
+                context=context,
+                response_language_instruction=get_language_instruction(response_language),
+            )
         
         @retry_on_error(logger=logger)
         def invoke_model():
@@ -529,7 +542,7 @@ def generate_answer(state: AgentState):
         logger.info("Answer generated")
         
         # Add medical disclaimer to response
-        response.content = (response.content or "") + MEDICAL_DISCLAIMER
+        response.content = (response.content or "") + get_medical_disclaimer(response_language, MEDICAL_DISCLAIMER)
         
         if citations_payload:
             existing_kwargs = response.additional_kwargs or {}
@@ -550,7 +563,7 @@ def generate_answer(state: AgentState):
         
     except Exception as e:
         logger.error(f"Error in generate_answer: {e}")
-        return {"messages": [AIMessage(content=create_error_response("llm"))]}
+        return {"messages": [AIMessage(content=create_error_response("llm", language=detect_user_language(_latest_user_text(state.get("messages", [])))))]}
 
 
 @traceable(name="critique_answer")

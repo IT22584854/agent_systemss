@@ -15,11 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from agents.src.graph.state import ClarifyWithUser, AgentState, AgentInputState
 from agents.src.prompts.triage_prompt import intent_classifier_prompt
-from agents.src.config import LLM_MODEL, LLM_TEMPERATURE
-from agents.src.utils import setup_logger, sanitize_input, retry_on_error, create_error_response
 from langchain_openai import ChatOpenAI
-
-#
 from agents.src.config import (
     LLM_MODEL, LLM_TEMPERATURE,
     LLM_PROVIDER,
@@ -29,7 +25,15 @@ from agents.src.config import (
     CUSTOM_LLM_MAX_TOKENS,
     CUSTOM_LLM_TEMPERATURE,
 )
-#
+from agents.src.utils import (
+    setup_logger,
+    sanitize_input,
+    retry_on_error,
+    create_error_response,
+    detect_user_language,
+    get_language_instruction,
+)
+
 # ===== LOGGING =====
 logger = setup_logger("intent_classifier_agent")
 
@@ -39,6 +43,14 @@ def get_today_str() -> str:
     """Get current date in a human-readable format."""
     now = datetime.now()
     return f"{now.strftime('%a %b')} {now.day}, {now.year}"
+
+
+def get_latest_user_text(messages) -> str:
+    """Return the most recent user-authored message for language detection."""
+    for message in reversed(messages or []):
+        if isinstance(message, HumanMessage):
+            return message.content
+    return ""
 
 # ===== CONFIGURATION =====
 from dotenv import load_dotenv
@@ -71,6 +83,8 @@ def clarify_with_user(state: AgentState):
     try:
         # Sanitize the latest user message
         messages = state.get("messages", [])
+        latest_user_text = get_latest_user_text(messages)
+        response_language = detect_user_language(latest_user_text)
         if messages:
             last_msg = messages[-1]
             if isinstance(last_msg, HumanMessage):
@@ -84,7 +98,8 @@ def clarify_with_user(state: AgentState):
             return structured_output_model.invoke([
                 HumanMessage(content=intent_classifier_prompt.format(
                     messages=get_buffer_string(messages=state["messages"]),
-                    date=get_today_str()
+                    date=get_today_str(),
+                    response_language_instruction=get_language_instruction(response_language),
                 ))
             ])
          
@@ -95,7 +110,12 @@ def clarify_with_user(state: AgentState):
         logger.debug(f"RAG query: {response.intent_summary}")
 
         if response.need_clarification:
-            follow_up = response.follow_up_question or "Could you share a bit more detail?"
+            fallbacks = {
+                "si": "කරුණාකර ටිකක් වැඩි විස්තරයක් දිය හැකිද?",
+                "ta": "தயவுசெய்து இன்னும் கொஞ்சம் விரிவாக சொல்ல முடியுமா?",
+                "en": "Could you share a bit more detail?",
+            }
+            follow_up = response.follow_up_question or fallbacks.get(response_language, fallbacks["en"])
             return {
                 "messages": [AIMessage(content=follow_up)],
                 "active_agent": "intent_classifier",
@@ -114,7 +134,12 @@ def clarify_with_user(state: AgentState):
             }
 
         # Generate RAG query for medical information
-        rag_query = intent_summary or "User intent unclear; please restate the concern."
+        rag_query_fallbacks = {
+            "si": "පරිශීලක අවශ්‍යතාව පැහැදිලි නැත; කරුණාකර ඔබගේ ගැටලුව නැවත පැහැදිලි කරන්න.",
+            "ta": "பயனர் தேவையை தெளிவாகப் புரிந்துகொள்ள முடியவில்லை; தயவுசெய்து உங்கள் கவலையை மீண்டும் தெளிவாகச் சொல்லுங்கள்.",
+            "en": "User intent unclear; please restate the concern.",
+        }
+        rag_query = intent_summary or rag_query_fallbacks.get(response_language, rag_query_fallbacks["en"])
         logger.info(f"RAG query generated: {rag_query}")
         return {
             "rag_query": rag_query,
@@ -124,7 +149,7 @@ def clarify_with_user(state: AgentState):
     except Exception as e:
         logger.error(f"Error in intent classifier agent: {e}")
         return {
-            "messages": [AIMessage(content=create_error_response("llm"))],
+            "messages": [AIMessage(content=create_error_response("llm", language=response_language if 'response_language' in locals() else "en"))],
             "active_agent": "intent_classifier",
             "rag_query": None,
         }
