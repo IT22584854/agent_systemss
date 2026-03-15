@@ -129,7 +129,7 @@ export default function Sidebar({ conversations, activeId, onNewChat, onOpen, on
             <div className="sidebar-logo">
                 <div className="sidebar-logo-icon">🩺</div>
                 <div>
-                    <div className="sidebar-logo-text">MedTriage AI</div>
+                    <div className="sidebar-logo-text">Nenagov</div>
                     <div className="sidebar-logo-subtext">Clinical guidance with source-backed answers</div>
                 </div>
             </div>

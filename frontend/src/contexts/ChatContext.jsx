@@ -7,6 +7,50 @@ const ChatContext = createContext();
 
 const STORAGE_KEY = 'mta_conversations';
 
+function canonicalizeText(value) {
+  return typeof value === 'string'
+    ? value.trim().toLowerCase().replace(/\s+/g, ' ')
+    : '';
+}
+
+function canonicalizeUrl(value) {
+  if (typeof value !== 'string' || !value.trim()) return '';
+
+  try {
+    const parsed = new URL(value.trim());
+    parsed.hash = '';
+    return parsed.toString().replace(/\/$/, '').toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function dedupeSources(sources) {
+  if (!Array.isArray(sources) || sources.length === 0) return [];
+
+  const seen = new Set();
+  const unique = [];
+
+  for (const source of sources) {
+    if (!source || typeof source !== 'object') continue;
+
+    const derivedUrl = source.url || (typeof source.source === 'string' && /^https?:\/\//i.test(source.source) ? source.source : '');
+    const urlKey = canonicalizeUrl(derivedUrl);
+    const textKey = canonicalizeText(source.title || source.source);
+    const dedupeKey = urlKey || textKey;
+
+    if (!dedupeKey || seen.has(dedupeKey)) continue;
+
+    seen.add(dedupeKey);
+    unique.push({
+      ...source,
+      ...(derivedUrl && !source.url ? { url: derivedUrl } : {}),
+    });
+  }
+
+  return unique;
+}
+
 /**
  * ChatProvider manages all chat state and operations
  */
@@ -156,7 +200,7 @@ export function ChatProvider({ children }) {
         id: uuidv4(),
         role: 'assistant',
         content: data.response,
-        sources: data.sources || [],
+        sources: dedupeSources(data.sources),
         timestamp: Date.now(),
       };
       
@@ -208,7 +252,7 @@ export function ChatProvider({ children }) {
         id: uuidv4(),
         role: 'assistant',
         content: data.response,
-        sources: data.sources || [],
+        sources: dedupeSources(data.sources),
         timestamp: Date.now(),
       };
       
@@ -256,7 +300,7 @@ export function ChatProvider({ children }) {
         id: uuidv4(),
         role: 'assistant',
         content: data.response,
-        sources: data.sources || [],
+        sources: dedupeSources(data.sources),
         timestamp: Date.now(),
         regenerated: true,
       };
@@ -320,8 +364,15 @@ export function ChatProvider({ children }) {
       markdown += `${msg.content}\n\n`;
       
       if (msg.sources && msg.sources.length > 0) {
+        const uniqueSources = dedupeSources(msg.sources);
+
+        if (uniqueSources.length === 0) {
+          markdown += `---\n\n`;
+          return;
+        }
+
         markdown += `### Sources\n\n`;
-        msg.sources.forEach((source, idx) => {
+        uniqueSources.forEach((source, idx) => {
           markdown += `${idx + 1}. ${source.source}`;
           if (source.url) markdown += ` - [Link](${source.url})`;
           markdown += `\n`;

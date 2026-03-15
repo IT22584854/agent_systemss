@@ -35,7 +35,7 @@ from agents.src.utils import sanitize_input, setup_logger
 logger = setup_logger("api_server")
 
 # ── App ───────────────────────────────────────────────────────────────────────
-app = FastAPI(title="MedTriage AI API", version="1.0.0")
+app = FastAPI(title="Nenagov API", version="1.0.0")
 
 # CORS — allow requests from the deployed frontend (or * if not set)
 _frontend_url = os.getenv("FRONTEND_URL", "*")

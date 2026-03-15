@@ -14,7 +14,7 @@ function WelcomeState({ onSuggestion }) {
     return (
         <div className="welcome-state">
             <div className="welcome-icon">🩺</div>
-            <h1 className="welcome-title">MedTriage AI</h1>
+            <h1 className="welcome-title">Nenagov</h1>
             <p className="welcome-subtitle">
                 Ask me anything about symptoms, conditions, medications, or when to seek medical care.
                 I'll provide evidence-based information to guide your health decisions.

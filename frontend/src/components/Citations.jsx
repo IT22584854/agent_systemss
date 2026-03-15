@@ -11,6 +11,30 @@ function formatHostname(url) {
     }
 }
 
+function canonicalizeUrl(value) {
+    if (typeof value !== 'string' || !value.trim()) return '';
+
+    try {
+        const parsed = new URL(value.trim());
+        parsed.hash = '';
+        return parsed.toString().replace(/\/$/, '').toLowerCase();
+    } catch {
+        return '';
+    }
+}
+
+function getSourceHref(source) {
+    if (typeof source.url === 'string' && /^https?:\/\//i.test(source.url)) {
+        return source.url;
+    }
+
+    if (typeof source.source === 'string' && /^https?:\/\//i.test(source.source)) {
+        return source.source;
+    }
+
+    return '';
+}
+
 function prettifyLabel(source) {
     const raw = (source.title || source.source || '').trim();
     if (!raw) return '';
@@ -37,14 +61,19 @@ function normalizeSources(sources) {
         const label = prettifyLabel(src);
         if (!label || label.toLowerCase().startsWith('unknown')) continue;
 
-        const key = `${label}::${src.url || ''}`;
+        const href = getSourceHref(src);
+        const canonicalHref = canonicalizeUrl(href);
+        const canonicalLabel = label.toLowerCase().replace(/\s+/g, ' ').trim();
+        const key = canonicalHref || canonicalLabel;
+
         if (seen.has(key)) continue;
         seen.add(key);
 
         unique.push({
             ...src,
             label,
-            href: src.url || (typeof src.source === 'string' && /^https?:\/\//i.test(src.source) ? src.source : ''),
+            href,
+            dedupeKey: key,
         });
 
         if (unique.length >= MAX_VISIBLE_SOURCES) break;
@@ -74,7 +103,7 @@ export default function Citations({ sources }) {
                 {unique.map((src, index) => {
                     return src.href ? (
                         <a
-                            key={`${src.label}-${index}`}
+                            key={src.dedupeKey || `${src.label}-${index}`}
                             href={src.href}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -84,7 +113,7 @@ export default function Citations({ sources }) {
                             <ExternalLink size={13} className="citation-link-icon" />
                         </a>
                     ) : (
-                        <span key={`${src.label}-${index}`} className="citation-link-item citation-link-item-static" title={src.label}>
+                        <span key={src.dedupeKey || `${src.label}-${index}`} className="citation-link-item citation-link-item-static" title={src.label}>
                             <span className="citation-link-label">{src.label}</span>
                         </span>
                     );
