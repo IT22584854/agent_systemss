@@ -163,7 +163,7 @@ export function SettingsPanel({ isOpen, onClose }) {
             </button>
           </div>
           <div className="settings-app-meta">
-            <p className="settings-app-name">Medical Triage Assistant</p>
+            <p className="settings-app-name">Sri lankan Health Assistant</p>
             <p>Version 2.0.0</p>
             <p>Built with React + Vite</p>
           </div>

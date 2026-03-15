@@ -74,7 +74,7 @@ export default function App() {
           <div className="topbar-copy">
             <div className="topbar-favicon" aria-hidden="true">🩺</div>
             <div>
-              <h1 className="topbar-title">Medical Triage Assistant</h1>
+              <h1 className="topbar-title">Sri lankan Health Assistant</h1>
               <p className="topbar-subtitle">Evidence-based health guidance with citations and safety framing</p>
             </div>
           </div>
