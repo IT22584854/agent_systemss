@@ -40,6 +40,10 @@ class AgentState(MessagesState):
     active_agent: Annotated[Optional[str], overwrite_active] = "intent_classifier"
     new_message: Annotated[Optional[bool], overwrite_flag] = True
     rag_query: Annotated[Optional[str], overwrite_text]
+    # Stable audit fields kept for downstream persistence and evaluation.
+    last_active_agent: Annotated[Optional[str], overwrite_text] = None
+    last_rag_query: Annotated[Optional[str], overwrite_text] = None
+    turn_type: Annotated[Optional[str], overwrite_text] = None
     intent_classifier_turns: int = 0
     rewrite_attempts: int = 0  # max 3
     critique_attempts: int = 0  # max 2

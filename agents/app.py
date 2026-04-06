@@ -5,6 +5,7 @@ import os
 import sys
 import types
 import uuid
+from datetime import datetime, timezone
 from functools import lru_cache
 from importlib import import_module
 from pathlib import Path
@@ -30,9 +31,12 @@ if "agents" not in sys.modules:
 from langchain_core.messages import AIMessage, HumanMessage
 
 from backend.agent_service import extract_sources
+from backend.turn_logger import TurnLogRecord, TurnLogger, utc_iso_now
 from agents.src.utils import sanitize_input, setup_logger
 
 logger = setup_logger("api_server")
+_LOG_DB_PATH = Path(os.getenv("EVAL_LOG_DB_PATH", str(_HERE / "data" / "evaluation_logs.db")))
+turn_logger = TurnLogger(_LOG_DB_PATH)
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="Nenagov API", version="1.0.0")
@@ -76,6 +80,8 @@ async def health():
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest):
     session_id = req.session_id or str(uuid.uuid4())
+    created_at = utc_iso_now()
+    t_start = datetime.now(timezone.utc)
 
     safe_message = sanitize_input(req.message)
     if not safe_message:
@@ -103,6 +109,9 @@ async def chat(req: ChatRequest):
             detail="Agent backend is unavailable or still initializing. Please try again.",
         )
 
+    responded_at = utc_iso_now()
+    latency_ms = int((datetime.now(timezone.utc) - t_start).total_seconds() * 1000)
+
     # Extract the last AI message as the response text
     messages = result.get("messages", [])
     ai_reply = next(
@@ -111,6 +120,36 @@ async def chat(req: ChatRequest):
     )
 
     sources = extract_sources(messages)
+
+    turn_type = result.get("turn_type")
+    is_clarification = turn_type == "clarification"
+    is_final_answer = turn_type == "final"
+    active_agent = result.get("last_active_agent") or result.get("active_agent")
+    rag_query = result.get("last_rag_query")
+
+    try:
+        turn_index = turn_logger.log_turn(
+            TurnLogRecord(
+                session_id=session_id,
+                user_message=safe_message,
+                assistant_message=ai_reply,
+                active_agent=active_agent,
+                rag_query=rag_query,
+                is_clarification=is_clarification,
+                is_final_answer=is_final_answer,
+                created_at=created_at,
+                responded_at=responded_at,
+                latency_ms=max(latency_ms, 0),
+            )
+        )
+        logger.info(
+            "Stored turn log | session_id=%s | turn_index=%s | type=%s",
+            session_id,
+            turn_index,
+            turn_type or "unknown",
+        )
+    except Exception as exc:
+        logger.exception("Turn log persistence failed | session_id=%s | error=%s", session_id, exc)
 
     return ChatResponse(response=ai_reply, sources=sources, session_id=session_id)
 

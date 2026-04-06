@@ -75,20 +75,37 @@ def intent_classifier_agent(state: AgentState):
             logger.info("Intent classifier needs follow-up, returning to user")
             updates["new_message"] = True
             updates["rag_query"] = None
+            updates["last_active_agent"] = "intent_classifier"
+            updates["last_rag_query"] = None
+            updates["turn_type"] = "clarification"
             return Command(goto="finalize_response", update=updates)
 
         if rag_query:
             logger.info(f"Intent classification complete, routing to medical info with query: {rag_query[:50]}...")
+            updates["last_active_agent"] = "medical_info"
+            updates["last_rag_query"] = rag_query
+            updates["turn_type"] = "final"
             return Command(goto="medical_info_agent", update=updates)
 
         # Fallback: end the run without advancing if no RAG query was produced
         logger.warning("No RAG query produced, finalizing response")
         updates["new_message"] = True
+        updates["last_active_agent"] = "intent_classifier"
+        updates["last_rag_query"] = None
+        updates["turn_type"] = "final"
         return Command(goto="finalize_response", update=updates)
         
     except Exception as e:
         logger.error(f"Error in intent_classifier_agent: {e}")
-        return Command(goto="finalize_response", update={"new_message": True})
+        return Command(
+            goto="finalize_response",
+            update={
+                "new_message": True,
+                "last_active_agent": "intent_classifier",
+                "last_rag_query": None,
+                "turn_type": "final",
+            },
+        )
 
 
 @traceable(name="medical_info_agent")
@@ -140,6 +157,9 @@ def medical_info_agent(state: AgentState) -> Command[Literal["finalize_response"
                 
         if new_messages:
             updates["messages"] = new_messages
+        updates["last_active_agent"] = "medical_info"
+        updates["last_rag_query"] = rag_query
+        updates["turn_type"] = "final"
         updates["rag_query"] = None
         updates["active_agent"] = None
         
@@ -148,7 +168,16 @@ def medical_info_agent(state: AgentState) -> Command[Literal["finalize_response"
         
     except Exception as e:
         logger.error(f"Error in medical_info_agent: {e}")
-        return Command(goto="finalize_response", update={"rag_query": None, "active_agent": None})
+        return Command(
+            goto="finalize_response",
+            update={
+                "rag_query": None,
+                "active_agent": None,
+                "last_active_agent": "medical_info",
+                "last_rag_query": state.get("rag_query"),
+                "turn_type": "final",
+            },
+        )
 
 
 @traceable(name="finalize_response")
@@ -160,6 +189,9 @@ def finalize_response(state: AgentState):
         "messages": messages,
         "active_agent": None,
         "rag_query": None,
+        "last_active_agent": state.get("last_active_agent"),
+        "last_rag_query": state.get("last_rag_query"),
+        "turn_type": state.get("turn_type"),
         "new_message": True
     }
 
