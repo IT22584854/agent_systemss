@@ -9,7 +9,11 @@ const STORAGE_KEY = 'mta_conversations';
 
 function canonicalizeText(value) {
   return typeof value === 'string'
-    ? value.trim().toLowerCase().replace(/\s+/g, ' ')
+    ? value
+      .trim()
+      .toLowerCase()
+      .replace(/[\W_]+/g, ' ')
+      .replace(/\s+/g, ' ')
     : '';
 }
 
@@ -18,8 +22,10 @@ function canonicalizeUrl(value) {
 
   try {
     const parsed = new URL(value.trim());
+    parsed.search = '';
     parsed.hash = '';
-    return parsed.toString().replace(/\/$/, '').toLowerCase();
+    const normalized = `${parsed.protocol}//${parsed.hostname}${parsed.pathname}`;
+    return normalized.replace(/\/$/, '').toLowerCase();
   } catch {
     return '';
   }

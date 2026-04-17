@@ -74,7 +74,11 @@ def get_agent_graph():
 # ── Routes ────────────────────────────────────────────────────────────────────
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "service": "backend"}
+    return {
+        "status": "ok",
+        "service": "backend",
+        "turn_log_sync": turn_logger.get_sync_status(),
+    }
 
 
 @app.post("/api/chat", response_model=ChatResponse)

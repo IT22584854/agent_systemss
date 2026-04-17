@@ -16,11 +16,23 @@ function canonicalizeUrl(value) {
 
     try {
         const parsed = new URL(value.trim());
+        parsed.search = '';
         parsed.hash = '';
-        return parsed.toString().replace(/\/$/, '').toLowerCase();
+        const normalized = `${parsed.protocol}//${parsed.hostname}${parsed.pathname}`;
+        return normalized.replace(/\/$/, '').toLowerCase();
     } catch {
         return '';
     }
+}
+
+function canonicalizeLabel(value) {
+    if (typeof value !== 'string' || !value.trim()) return '';
+
+    return value
+        .trim()
+        .toLowerCase()
+        .replace(/[\W_]+/g, ' ')
+        .replace(/\s+/g, ' ');
 }
 
 function getSourceHref(source) {
@@ -63,7 +75,7 @@ function normalizeSources(sources) {
 
         const href = getSourceHref(src);
         const canonicalHref = canonicalizeUrl(href);
-        const canonicalLabel = label.toLowerCase().replace(/\s+/g, ' ').trim();
+        const canonicalLabel = canonicalizeLabel(label);
         const key = canonicalHref || canonicalLabel;
 
         if (seen.has(key)) continue;
