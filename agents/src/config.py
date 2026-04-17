@@ -54,6 +54,7 @@ MEDICAL_DISCLAIMER = os.getenv(
 
 # === Custom LLM Configuration ===
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "").strip()
 CUSTOM_LLM_API_KEY = os.getenv("CUSTOM_LLM_API_KEY", "")
 CUSTOM_LLM_BASE_URL = os.getenv("CUSTOM_LLM_BASE_URL", "")
 CUSTOM_LLM_MODEL = os.getenv("CUSTOM_LLM_MODEL", "Qwen/Qwen3-1.7B")

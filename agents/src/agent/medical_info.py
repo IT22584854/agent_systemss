@@ -17,13 +17,13 @@ from langchain_core.documents import Document
 from langchain_community.retrievers import BM25Retriever
 from langchain_classic.retrievers import EnsembleRetriever
 from langchain.tools import tool
-from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
 from langsmith import traceable
 from pydantic import BaseModel, Field
 from agents.src.config import (
     LLM_MODEL, LLM_TEMPERATURE,
     LLM_PROVIDER,
+    OPENAI_BASE_URL,
     CUSTOM_LLM_API_KEY,
     CUSTOM_LLM_BASE_URL,
     CUSTOM_LLM_MODEL,
@@ -264,7 +264,7 @@ def web_search(query: str) -> str:
 web_search_tool = web_search
 
 # OpenAI path kept for later use
-# response_model = init_chat_model(LLM_MODEL, temperature=LLM_TEMPERATURE)
+# response_model = ChatOpenAI(...)
 
 if LLM_PROVIDER == "custom_openai_compatible":
     response_model = ChatOpenAI(
@@ -275,7 +275,22 @@ if LLM_PROVIDER == "custom_openai_compatible":
         max_tokens=CUSTOM_LLM_MAX_TOKENS,
     )
 else:
-    response_model = init_chat_model(LLM_MODEL, temperature=LLM_TEMPERATURE)
+    openai_api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    openai_kwargs = {
+        "api_key": openai_api_key,
+        "model": LLM_MODEL,
+        "temperature": LLM_TEMPERATURE,
+    }
+    if OPENAI_BASE_URL:
+        openai_kwargs["base_url"] = OPENAI_BASE_URL
+    response_model = ChatOpenAI(**openai_kwargs)
+
+logger.info(
+    "Medical model initialized | provider=%s | model=%s | has_api_key=%s",
+    LLM_PROVIDER,
+    (CUSTOM_LLM_MODEL if LLM_PROVIDER == "custom_openai_compatible" else LLM_MODEL),
+    bool(CUSTOM_LLM_API_KEY if LLM_PROVIDER == "custom_openai_compatible" else openai_api_key),
+)
 
 
 def _latest_user_text(messages: List[BaseMessage]) -> str:

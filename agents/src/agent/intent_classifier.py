@@ -1,9 +1,9 @@
 """Intent classifier agent for user clarification and intent extraction."""
 from datetime import datetime
+import os
 from pathlib import Path
 import sys
 
-from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, AIMessage, get_buffer_string
 from langgraph.graph import StateGraph, START, END
 from langsmith import traceable
@@ -19,6 +19,7 @@ from langchain_openai import ChatOpenAI
 from agents.src.config import (
     LLM_MODEL, LLM_TEMPERATURE,
     LLM_PROVIDER,
+    OPENAI_BASE_URL,
     CUSTOM_LLM_API_KEY,
     CUSTOM_LLM_BASE_URL,
     CUSTOM_LLM_MODEL,
@@ -56,8 +57,7 @@ def get_latest_user_text(messages) -> str:
 from dotenv import load_dotenv
 load_dotenv()
 
-# OpenAI path kept for later use
-# model = init_chat_model(model=LLM_MODEL, temperature=LLM_TEMPERATURE)
+openai_api_key = os.getenv("OPENAI_API_KEY", "").strip()
 
 if LLM_PROVIDER == "custom_openai_compatible":
     model = ChatOpenAI(
@@ -68,7 +68,21 @@ if LLM_PROVIDER == "custom_openai_compatible":
         max_tokens=CUSTOM_LLM_MAX_TOKENS,
     )
 else:
-    model = init_chat_model(model=LLM_MODEL, temperature=LLM_TEMPERATURE)
+    openai_kwargs = {
+        "api_key": openai_api_key,
+        "model": LLM_MODEL,
+        "temperature": LLM_TEMPERATURE,
+    }
+    if OPENAI_BASE_URL:
+        openai_kwargs["base_url"] = OPENAI_BASE_URL
+    model = ChatOpenAI(**openai_kwargs)
+
+logger.info(
+    "Intent model initialized | provider=%s | model=%s | has_api_key=%s",
+    LLM_PROVIDER,
+    (CUSTOM_LLM_MODEL if LLM_PROVIDER == "custom_openai_compatible" else LLM_MODEL),
+    bool(CUSTOM_LLM_API_KEY if LLM_PROVIDER == "custom_openai_compatible" else openai_api_key),
+)
 
 
 
